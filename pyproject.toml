@@ -33,7 +33,6 @@ openpyxl = "^3.1.5"
 oss2 = "^2.19.1"
 watchdog = "^6.0.0"
 asyncmy = "^0.2.11"
-opencc-python-reimplemented = "^0.1.7"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

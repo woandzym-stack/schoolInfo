@@ -10,8 +10,10 @@ class Schools(SQLModel, table=True):
     __tablename__ = "schools"
 
     id: int = Field(sa_column=Column("id", Integer, primary_key=True, autoincrement=True))
-    # 学校名称
+    # 学校名称（繁体）
     name: str = Field(sa_column=Column("name", String(255), nullable=False))
+    # 学校名称的简体版本，用于简体关键字搜索（与 name 双列匹配，查询时不做简繁转换）
+    simple_name: Optional[str] = Field(default=None, sa_column=Column("simple_name", String(255)))
     # 学校网址
     url: Optional[str] = Field(default=None, sa_column=Column("url", String(500)))
     # schooland.hk 详情页链接

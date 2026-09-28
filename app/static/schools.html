@@ -667,7 +667,7 @@
         return opts;
       });
 
-      // 名称搜索：DB 校名为繁体，简体关键字由后端 /search 转繁后匹配。
+      // 名称搜索：关键字不做简繁转换，由后端 /search 同时匹配繁体名 name 与简体名 simple_name。
       // searchResults 为 null 表示未在搜索（用全量 schools + 前端匹配），非 null 时姓名匹配已由服务端完成。
       const searchResults = ref(null);
       let searchTimer = null;
@@ -678,7 +678,9 @@
         const pool = searchResults.value !== null ? searchResults.value : schools.value;
         return pool.filter(s => {
           if (s.stage !== stage.value) return false;
-          if (searchResults.value === null && kw && !(s.name || '').toLowerCase().includes(kw)) return false;
+          if (searchResults.value === null && kw
+              && !(s.name || '').toLowerCase().includes(kw)
+              && !(s.simple_name || '').toLowerCase().includes(kw)) return false;
           for (const f of filterDefs.value) {
             const v = filters[f.key];
             if (v && s[f.key] !== v) return false;

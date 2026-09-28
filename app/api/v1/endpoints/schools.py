@@ -7,7 +7,6 @@ from typing import Annotated, Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from loguru import logger
-from opencc import OpenCC
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -30,10 +29,6 @@ _cache_lock = asyncio.Lock()
 _cache_body: Optional[bytes] = None
 _cache_data: Optional[List[Dict[str, Any]]] = None
 _cache_expires_at: float = 0.0
-
-# 数据库中的校名均为繁体，用户可能输入简体：统一转繁后再匹配。
-# s2t 对已是繁体的字符原样保留，因此混合输入也安全。
-_cc_s2t = OpenCC("s2t")
 
 # ---------- 插班链接接口限流（防爬） ----------
 # 申请链接是核心数据资产：名录接口只返回链接数量，链接本体按学校逐个获取。
@@ -89,6 +84,7 @@ async def _load_directory() -> List[Dict[str, Any]]:
     schools_stmt = select(
         Schools.id,
         Schools.name,
+        Schools.simple_name,
         Schools.url,
         Schools.type,
         Schools.district,
@@ -119,13 +115,14 @@ async def _load_directory() -> List[Dict[str, Any]]:
     data: List[Dict[str, Any]] = []
     for row in school_rows:
         (
-            s_id, name, url, s_type, district, stage, banding, school_net,
+            s_id, name, simple_name, url, s_type, district, stage, banding, school_net,
             language, gender, religion, address, phone, email,
         ) = row
         data.append(
             {
                 "id": s_id,
                 "name": name,
+                "simple_name": simple_name,
                 "url": url,
                 "type": s_type,
                 "district": district,
@@ -219,22 +216,27 @@ async def last_updated(db: Annotated[AsyncSession, Depends(get_async_db)]) -> Si
     return SingleResponse(data={"updated_at": ts})
 
 
-@router.get("/search", response_model=SingleResponse, summary="按名称搜索学校（自动简转繁）")
+@router.get("/search", response_model=SingleResponse, summary="按名称搜索学校（简繁双列匹配）")
 async def search_schools(
     name: str = Query(..., min_length=1, description="学校名称关键字，简体/繁体均可"),
 ) -> SingleResponse:
     """
-    按名称模糊搜索学校：先把关键字简体转繁体，再与名录中的繁体校名做不区分大小写的子串匹配。
+    按名称模糊搜索学校：关键字不做简繁转换，直接同时匹配繁体名 name 与简体名 simple_name。
 
+    - 简体输入命中 simple_name、繁体输入命中 name；简繁混合的关键字可能两列都不命中
     - 匹配在进程内缓存的名录数据上进行，不触碰数据库
     - 返回结构与 /schools 单条记录一致（只含 admission_link_count），便于前端复用同一渲染逻辑
     """
-    kw = _cc_s2t.convert(name).strip().lower()
+    kw = name.strip().lower()
     if not kw:
         return SingleResponse(data=[])
 
     data = await _get_directory()
-    matched = [s for s in data if kw in (s["name"] or "").lower()]
+    matched = [
+        s
+        for s in data
+        if kw in (s["name"] or "").lower() or kw in (s["simple_name"] or "").lower()
+    ]
     return SingleResponse(data=matched)
 
 

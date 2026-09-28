@@ -1472,18 +1472,6 @@ files = [
 ]
 
 [[package]]
-name = "opencc-python-reimplemented"
-version = "0.1.7"
-description = "OpenCC made with Python"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "opencc-python-reimplemented-0.1.7.tar.gz", hash = "sha256:4f777ea3461a25257a7b876112cfa90bb6acabc6dfb843bf4d11266e43579dee"},
-    {file = "opencc_python_reimplemented-0.1.7-py2.py3-none-any.whl", hash = "sha256:41b3b92943c7bed291f448e9c7fad4b577c8c2eae30fcfe5a74edf8818493aa6"},
-]
-
-[[package]]
 name = "openpyxl"
 version = "3.1.5"
 description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
@@ -2971,4 +2959,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "c82149025d88a17458f7765ff28d807d4fb3bf70221a37672616c627416545e9"
+content-hash = "917f0dcbeec2cca6c47844961a29f308f59e8ec59bdc687499a867921ade02cc"
