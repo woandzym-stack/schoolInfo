@@ -62,6 +62,12 @@ class Settings(BaseSettings):
 
     GMAIL_SENDER:str="zhouopenclaw@gmail.com"
 
+    # --- 认证 ---
+    JWT_SECRET: str = ""                # HS256 密钥；prod 模式缺失拒绝启动（lifespan 强制校验）
+    JWT_EXPIRE_DAYS: int = 7
+    AUTH_COOKIE_NAME: str = "auth_token"
+    SESSION_COOKIE_SECURE: bool = True  # 客户端→nginx 是 HTTPS 时可开；纯 HTTP 部署置 False
+
     # --- 4. 组装 DATABASE_URL ---
     @property
     def DATABASE_URL(self) -> str:

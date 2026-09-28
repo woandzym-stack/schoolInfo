@@ -4,14 +4,14 @@ import time
 from collections import defaultdict
 from typing import Annotated, Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response
 from loguru import logger
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import AsyncSessionLocal, get_async_db
-from app.core.task_store import redis_async
+from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.models.admission_links import AdmissionLinks
 from app.models.schools import Schools
 from app.schemas.response import SingleResponse
@@ -33,42 +33,20 @@ _cache_expires_at: float = 0.0
 # ---------- 插班链接接口限流（防爬） ----------
 # 申请链接是核心数据资产：名录接口只返回链接数量，链接本体按学校逐个获取。
 # 爬全量需要逐校请求数千次，按 IP 双窗口限流可把单 IP 抓取拖到不可用的时间量级。
-# 限流用 Redis 固定窗口计数（INCR + EXPIRE），Redis 抖动时放行（fail-open）：
-# 可用性优先——正常家长点击不应被基础设施故障阻断。
+# 限流实现见 app/core/rate_limit.py（Redis 固定窗口，fail-open）。
 _ADM_RATE_PER_MINUTE = 30   # 每 IP 每分钟最多取 30 所学校的链接
 _ADM_RATE_PER_DAY = 200     # 每 IP 每天最多取 200 所学校的链接
 
 
-def _client_ip(request: Request) -> str:
-    """
-    取客户端 IP：优先 X-Forwarded-For 首跳（部署在 Nginx 之后时由反代覆写）；
-    无代理头时退回直连地址。
-    """
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
 async def _check_adm_link_rate(ip: str) -> None:
-    """固定窗口限流：分钟/天任一超限即抛 429；Redis 异常时放行并记录。"""
     now = time.time()
-    windows = (
-        (f"rl:adm:m:{ip}:{int(now // 60)}", 70, _ADM_RATE_PER_MINUTE),
-        (f"rl:adm:d:{ip}:{int(now // 86400)}", 90000, _ADM_RATE_PER_DAY),
+    await check_rate_limit(
+        [
+            (f"rl:adm:m:{ip}:{int(now // 60)}", 70, _ADM_RATE_PER_MINUTE),
+            (f"rl:adm:d:{ip}:{int(now // 86400)}", 90000, _ADM_RATE_PER_DAY),
+        ],
+        scene="插班链接接口",
     )
-    try:
-        for key, ttl, limit in windows:
-            n = await redis_async.incr(key)
-            if n == 1:
-                await redis_async.expire(key, ttl)
-            if n > limit:
-                logger.warning(f"插班链接接口触发限流 | ip={ip} | key={key} | count={n}")
-                raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"限流计数失败（放行本次请求）: {e}")
 
 
 async def _load_directory() -> List[Dict[str, Any]]:
@@ -253,7 +231,7 @@ async def get_admission_links(
     - 按客户端 IP 固定窗口限流（分钟/天双窗口），超限返回 429
     - 学校无链接时返回空数组
     """
-    await _check_adm_link_rate(_client_ip(request))
+    await _check_adm_link_rate(get_client_ip(request))
 
     stmt = (
         select(AdmissionLinks.url, AdmissionLinks.link_text, AdmissionLinks.grades)

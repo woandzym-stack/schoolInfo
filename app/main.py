@@ -32,6 +32,9 @@ async def lifespan(app: FastAPI):
         if not settings.DB_PASSWORD:
             logger.error("❌ 生产环境必须配置数据库密码，请检查 .env 文件中的 DB_PASSWORD")
             raise ValueError("生产环境数据库密码未配置，禁止启动")
+        if not settings.JWT_SECRET:
+            logger.error("❌ 生产环境必须配置 JWT 密钥，请检查 .env 文件中的 JWT_SECRET")
+            raise ValueError("生产环境JWT密钥未配置，禁止启动")
         logger.info("✅ 生产环境安全配置验证通过")
 
     # 针对 LLM 长耗时/流式场景的连接池配置

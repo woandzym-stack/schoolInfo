@@ -31,3 +31,15 @@ async def serve_schools_directory():
         raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/schools.html")
 
     return FileResponse(html_path)
+
+
+@ui_router.get("/subscriptions", summary="我的订阅", include_in_schema=False)
+async def serve_subscriptions():
+    """我的订阅页面（登录态由前端探测 /auth/me 判定）"""
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent
+    html_path = base_dir / "static" / "subscriptions.html"
+
+    if not html_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/subscriptions.html")
+
+    return FileResponse(html_path)

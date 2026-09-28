@@ -123,10 +123,11 @@ class LogMiddleware:
                     body_str = body_bytes.decode("utf-8")
                     if body_str:
                         body_json = json.loads(body_str)
-                        # 简单脱敏
-                        SENSITIVE_FIELDS = {"password", "api_key", "secret", "token", "authorization"}
-                        for field in SENSITIVE_FIELDS:
-                            if field in body_json: body_json[field] = "******"
+                        # 脱敏：键名小写后包含敏感词即打码（子串匹配，覆盖 password/old_password/*_token 等）
+                        SENSITIVE_WORDS = ("password", "api_key", "secret", "token", "authorization")
+                        for field in list(body_json):
+                            if any(w in field.lower() for w in SENSITIVE_WORDS):
+                                body_json[field] = "******"
                             
                         log_content += f" | Body: {json.dumps(body_json, ensure_ascii=False)}"
                 except:

@@ -141,6 +141,46 @@
   .contact-act:hover, .contact-act.mailto:hover { background: var(--el-color-primary-light-9); }
   .fade-enter-active, .fade-leave-active { transition: opacity .15s; }
   .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+  /* ---------- 登录入口 / 订阅按钮 ---------- */
+  .stagebar-auth { align-self: center; display: flex; align-items: center; gap: 14px; }
+  .auth-user { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .auth-link { font-size: 14px; color: var(--slate); text-decoration: none; }
+  .auth-link:hover { color: var(--ink); }
+  .auth-btn {
+    display: inline-flex; align-items: center;
+    padding: 6px 12px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 13px; font-weight: 700;
+    background: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .auth-btn:hover { background: var(--el-color-primary-light-9); }
+  .auth-btn.primary { background: var(--ink); color: #fff; }
+  .auth-btn.primary:hover { background: var(--el-color-primary-light-3); }
+  .subscribe-btn {
+    display: inline-flex; align-items: center;
+    padding: 5px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--slate);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .subscribe-btn:hover { color: var(--ink); border-color: var(--ink); }
+  .subscribe-btn.subscribed {
+    color: var(--seal);
+    border-color: rgba(179, 57, 46, .4);
+    background: rgba(179, 57, 46, .06);
+  }
   .stage-tab {
     appearance: none;
     border: none; background: none; cursor: pointer;
@@ -356,6 +396,14 @@
           </div>
         </transition>
       </div>
+      <div class="stagebar-auth" v-if="auth.loaded">
+        <template v-if="auth.user">
+          <a class="auth-link" href="/ui/subscriptions">我的订阅</a>
+          <span class="auth-user">{{ auth.user.username }}</span>
+          <button type="button" class="auth-btn" @click="onLogout">退出</button>
+        </template>
+        <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
+      </div>
     </div>
   </nav>
 
@@ -453,7 +501,7 @@
             <span class="muted">{{ scope.row.phone || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="270" fixed="right">
           <template #default="scope">
             <div class="ops">
               <a v-if="scope.row.url" class="site-btn" :href="scope.row.url" target="_blank" rel="noopener">官网 ↗</a>
@@ -484,6 +532,11 @@
                 </template>
               </el-dropdown>
               <span v-else class="admission-btn disabled">暂无插班入口</span>
+
+              <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[scope.row.id] }"
+                      @click="openSubscribe(scope.row)">
+                {{ mySubs[scope.row.id] ? '已订阅 ✓' : '订阅' }}
+              </button>
             </div>
           </template>
         </el-table-column>
@@ -537,6 +590,11 @@
               </template>
             </el-dropdown>
             <span v-else class="admission-btn disabled">暂无插班入口</span>
+
+            <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[s.id] }"
+                    @click="openSubscribe(s)">
+              {{ mySubs[s.id] ? '已订阅 ✓' : '订阅' }}
+            </button>
           </div>
         </div>
       </div>
@@ -560,12 +618,29 @@
       © {{ year }} 香港插班 · 学校名录<span v-if="updatedAt" :title="'最近更新：' + updatedAtFull"> · 数据更新于 {{ updatedAt }}</span>
     </div>
   </footer>
+
+  <!-- 登录/注册弹窗（共享组件） -->
+  <auth-modal></auth-modal>
+
+  <!-- 订阅年级选择弹窗：按学校学段出 P1-P6 / S1-S6 选项，外加「全部年级」 -->
+  <el-dialog v-model="subDialog.visible" :title="'订阅 · ' + (subDialog.school ? subDialog.school.name : '')"
+             width="420px" align-center append-to-body>
+    <div v-if="subDialog.school">
+      <el-checkbox v-model="subDialog.all" @change="onSubAllChange">全部年级</el-checkbox>
+      <el-checkbox-group v-model="subDialog.grades" :disabled="subDialog.all" style="margin-top:10px;">
+        <el-checkbox v-for="g in subGradeOptions" :key="g.value" :value="g.value">{{ g.label }}</el-checkbox>
+      </el-checkbox-group>
+      <el-button type="primary" style="width:100%;margin-top:18px;" :loading="subDialog.submitting"
+                 @click="submitSubscribe">确认订阅</el-button>
+    </div>
+  </el-dialog>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/element-plus@2/dist/locale/zh-cn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2/dist/index.iife.min.js"></script>
+<script src="/static/js/auth.js"></script>
 <script>
 (function () {
   const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } = Vue;
@@ -813,6 +888,75 @@
         }
       }
 
+      // ---------- 登录态与订阅 ----------
+      const auth = SchoolAuth.state;
+      const mySubs = reactive({});  // schoolId → 聚合订阅记录（含 grades[]）
+
+      async function loadMySubs() {
+        try {
+          const list = await SchoolAuth.api('/api/v1/subscriptions');
+          for (const key of Object.keys(mySubs)) delete mySubs[key];
+          for (const item of list || []) mySubs[item.school_id] = item;
+        } catch (e) { /* 未登录/接口异常时名录功能不受影响 */ }
+      }
+
+      // 登录态变化驱动订阅标记：登录（含会话失效后重新登录）→ 重新拉取；
+      // 退出/会话失效 → 清空，避免残留上一个用户的订阅标记
+      watch(() => auth.user, (u) => {
+        if (u) loadMySubs();
+        else for (const key of Object.keys(mySubs)) delete mySubs[key];
+      });
+      SchoolAuth.init();
+      function onLogout() {
+        SchoolAuth.logout();  // 清态由上面的 watch 统一处理
+      }
+
+      // 订阅弹窗：年级选项按学校学段生成（小学 P1-P6 / 中学 S1-S6）
+      const subDialog = reactive({ visible: false, school: null, all: false, grades: [], submitting: false });
+      const subGradeOptions = computed(() => {
+        if (!subDialog.school) return [];
+        const isPrimary = subDialog.school.stage === 'primary';
+        return [1, 2, 3, 4, 5, 6].map(n => ({
+          value: (isPrimary ? 'P' : 'S') + n,
+          label: (isPrimary ? '小' : '中') + GRADE_ZH[n]
+        }));
+      });
+
+      function openSubscribe(school) {
+        SchoolAuth.requireLogin(() => {
+          subDialog.school = school;
+          const cur = mySubs[school.id];
+          subDialog.all = !!(cur && cur.grades.includes('all'));
+          subDialog.grades = cur && !subDialog.all ? cur.grades.slice() : [];
+          subDialog.visible = true;
+        });
+      }
+
+      function onSubAllChange(v) {
+        if (v) subDialog.grades = [];
+      }
+
+      async function submitSubscribe() {
+        if (!subDialog.all && subDialog.grades.length === 0) {
+          ElementPlus.ElMessage.warning('请至少选择一个年级，或勾选全部年级');
+          return;
+        }
+        subDialog.submitting = true;
+        try {
+          const data = await SchoolAuth.api('/api/v1/subscriptions', {
+            method: 'POST',
+            body: { school_id: subDialog.school.id, grades: subDialog.all ? [] : subDialog.grades }
+          });
+          mySubs[data.school_id] = data;
+          subDialog.visible = false;
+          ElementPlus.ElMessage.success('订阅成功，可在「我的订阅」查看申请入口');
+        } catch (e) {
+          ElementPlus.ElMessage.error(e.message);
+        } finally {
+          subDialog.submitting = false;
+        }
+      }
+
       // 切换学段：清空学段互斥的筛选与排序（组别/校网列互斥）
       watch(stage, () => {
         filters.banding = '';
@@ -910,11 +1054,14 @@
         currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
         showContact, copied, copyEmail,
-        linksCache, linksLoading, ensureLinks, openSingleAdmission
+        linksCache, linksLoading, ensureLinks, openSingleAdmission,
+        auth, SchoolAuth, onLogout, mySubs, subDialog, subGradeOptions,
+        openSubscribe, onSubAllChange, submitSubscribe
       };
     }
   });
 
+  app.component('auth-modal', SchoolAuth.AuthModal);
   app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
   app.mount('#app');
 })();

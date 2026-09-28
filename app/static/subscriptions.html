@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的订阅 · 香港插班</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.css">
+<link href="/static/fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1E2A44;
+    --paper: #F4F6F9;
+    --seal: #B3392E;
+    --seal-dark: #96291F;
+    --slate: #5A6B85;
+    --hairline: #D9DFE8;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  [v-cloak] { display: none; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    --el-color-primary: #1E2A44;
+    --el-color-primary-light-3: #4A5878;
+    --el-color-primary-light-5: #7A86A3;
+    --el-color-primary-light-7: #AAB2C6;
+    --el-color-primary-light-8: #C3C9D8;
+    --el-color-primary-light-9: #E8EAF0;
+    --el-color-primary-dark-2: #16203A;
+    --el-border-radius-base: 4px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- 刊头 ---------- */
+  .masthead {
+    background: var(--card);
+    border-bottom: 1px solid var(--hairline);
+    padding: 30px 0 22px;
+  }
+  .masthead-inner { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .seal {
+    width: 48px; height: 48px; flex: none;
+    background: var(--seal);
+    color: #FFF7F0;
+    font-family: "Noto Serif TC", serif;
+    font-weight: 700; font-size: 27px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(179, 57, 46, .35), inset 0 0 0 2px rgba(255, 247, 240, .35);
+    transform: rotate(-3deg);
+    user-select: none;
+  }
+  .masthead h1 {
+    font-family: "Noto Serif TC", serif;
+    font-size: 26px; font-weight: 700;
+    margin: 0; letter-spacing: 2px;
+  }
+  .masthead h1 .dot { color: var(--seal); }
+  .masthead .sub { margin: 4px 0 0; color: var(--slate); font-size: 13px; }
+  .mast-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .nav-link { font-size: 14px; color: var(--slate); text-decoration: none; }
+  .nav-link:hover { color: var(--ink); }
+  .auth-user { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .auth-btn {
+    display: inline-flex; align-items: center;
+    padding: 6px 12px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    color: var(--ink);
+    font-size: 13px; font-weight: 700;
+    background: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .auth-btn:hover { background: var(--el-color-primary-light-9); }
+  .auth-btn.primary { background: var(--ink); color: #fff; }
+  .auth-btn.primary:hover { background: var(--el-color-primary-light-3); }
+
+  /* ---------- 订阅卡片 ---------- */
+  main.container { padding-top: 22px; padding-bottom: 40px; }
+  .sub-card {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .sub-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sub-name {
+    font-family: "Noto Serif TC", serif;
+    font-size: 19px; font-weight: 700;
+  }
+  .mini-tag {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    font-size: 12px; color: var(--slate);
+    background: var(--paper);
+  }
+  .sub-time { font-size: 12px; color: var(--slate); }
+  .sub-cancel {
+    margin-left: auto;
+    border: none; background: none;
+    color: var(--slate); font-size: 13px;
+    cursor: pointer; padding: 4px 6px;
+  }
+  .sub-cancel:hover { color: var(--seal); }
+  .sub-grades { margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sub-grades .k { font-size: 13px; color: var(--slate); }
+  .sub-links { margin-top: 14px; border-top: 1px dashed var(--hairline); padding-top: 12px; }
+  .sub-links .k { font-size: 13px; color: var(--slate); margin-bottom: 8px; }
+  .adm-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin: 0 10px 8px 0;
+    padding: 6px 12px;
+    border: 1px solid rgba(179, 57, 46, .4);
+    border-radius: 4px;
+    color: var(--seal);
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    background: rgba(179, 57, 46, .04);
+    transition: background .15s;
+  }
+  .adm-link:hover { background: rgba(179, 57, 46, .1); }
+  .adm-link .grades { font-weight: 400; color: var(--slate); }
+  .no-links { font-size: 13px; color: var(--slate); }
+
+  /* ---------- 空态 / 未登录 ---------- */
+  .empty-box {
+    text-align: center;
+    padding: 70px 20px;
+    color: var(--slate);
+  }
+  .empty-box .title { font-size: 17px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .empty-box p { margin: 0 0 18px; font-size: 14px; }
+
+  .site-footer {
+    border-top: 1px solid var(--hairline);
+    padding: 18px 0 26px;
+    color: var(--slate); font-size: 13px;
+    background: var(--card);
+  }
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+  <header class="masthead">
+    <div class="container masthead-inner">
+      <div class="seal">订</div>
+      <div>
+        <h1>我的订阅</h1>
+        <p class="sub">已订阅学校的插班申请入口，一页直达</p>
+      </div>
+      <div class="mast-actions" v-if="auth.loaded">
+        <a class="nav-link" href="/ui/schools">← 返回名录</a>
+        <template v-if="auth.user">
+          <span class="auth-user">{{ auth.user.username }}</span>
+          <button type="button" class="auth-btn" @click="SchoolAuth.openChangePassword()">修改密码</button>
+          <button type="button" class="auth-btn" @click="onLogout">退出</button>
+        </template>
+        <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" v-loading="loading" element-loading-text="正在加载订阅…">
+    <!-- 未登录 -->
+    <div class="empty-box" v-if="auth.loaded && !auth.user">
+      <div class="title">登录后查看你的订阅</div>
+      <p>订阅学校后，这里会集中展示它们的插班申请入口</p>
+      <el-button type="primary" size="large" @click="SchoolAuth.openDialog('login')">登录 / 注册</el-button>
+    </div>
+
+    <!-- 已登录但无订阅 -->
+    <div class="empty-box" v-else-if="auth.loaded && auth.user && !loading && subs.length === 0">
+      <div class="title">还没有订阅任何学校</div>
+      <p>去学校名录，点击学校行内的「订阅」按钮即可</p>
+      <el-button type="primary" size="large" @click="goDirectory">去学校名录</el-button>
+    </div>
+
+    <!-- 订阅列表 -->
+    <div v-for="s in subs" :key="s.school_id" class="sub-card">
+      <div class="sub-head">
+        <span class="sub-name">{{ s.name }}</span>
+        <span class="mini-tag">{{ s.stage === 'primary' ? '小学' : '中学' }}</span>
+        <span class="mini-tag" v-if="s.district">{{ s.district }}</span>
+        <span class="sub-time">订阅于 {{ fmtDate(s.subscribed_at) }}</span>
+        <button type="button" class="sub-cancel" @click="cancelSchool(s)">全部取消</button>
+      </div>
+      <div class="sub-grades">
+        <span class="k">关注年级</span>
+        <el-tag v-for="g in s.grades" :key="g" closable :disable-transitions="true"
+                @close="cancelGrade(s, g)">{{ gradeZh(g) }}</el-tag>
+      </div>
+      <div class="sub-links">
+        <div class="k">插班申请入口</div>
+        <template v-if="(links[s.school_id] || []).length > 0">
+          <a v-for="(link, i) in links[s.school_id]" :key="i" class="adm-link"
+             :href="link.url" target="_blank" rel="noopener">
+            {{ link.link_text || '申请链接' }}
+            <span class="grades" v-if="link.grades && link.grades !== 'all'">（{{ gradeLabel(link.grades) }}）</span>
+          </a>
+        </template>
+        <span v-else class="no-links">该校暂无插班入口，订阅后如有更新可在此查看</span>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">© {{ year }} 香港插班 · 学校名录</div>
+  </footer>
+
+  <auth-modal></auth-modal>
+  <change-password-modal></change-password-modal>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-plus@2/dist/locale/zh-cn.min.js"></script>
+<script src="/static/js/auth.js"></script>
+<script>
+(function () {
+  const { createApp, ref, reactive, watch, onMounted } = Vue;
+
+  const app = createApp({
+    setup() {
+      const auth = SchoolAuth.state;
+      const subs = ref([]);          // 按学校聚合的订阅列表
+      const links = reactive({});    // schoolId → [{url, link_text, grades}]
+      const loading = ref(true);
+      const year = new Date().getFullYear();
+
+      const GRADE_ZH = { 1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六' };
+      function gradeZh(g) {
+        if (g === 'all') return '全部年级';
+        const m = /^([PS])([1-6])$/.exec(g);
+        return m ? (m[1] === 'P' ? '小' : '中') + GRADE_ZH[m[2]] : g;
+      }
+      // 链接的 grades 为逗号分隔原始码，转译为「小一、中一」
+      function gradeLabel(grades) {
+        return grades.split(',').map(g => gradeZh(g.trim())).join('、');
+      }
+      function fmtDate(iso) {
+        const m = /^(\d{4}-\d{2}-\d{2})/.exec(iso || '');
+        return m ? m[1] : iso;
+      }
+
+      async function loadAll() {
+        loading.value = true;
+        try {
+          const [subList, linkMap] = await Promise.all([
+            SchoolAuth.api('/api/v1/subscriptions'),
+            SchoolAuth.api('/api/v1/subscriptions/links')
+          ]);
+          subs.value = subList || [];
+          for (const key of Object.keys(links)) delete links[key];
+          Object.assign(links, linkMap || {});
+        } catch (e) {
+          if (e.status !== 401) ElementPlus.ElMessage.error(e.message || '订阅加载失败');
+        } finally {
+          loading.value = false;
+        }
+      }
+
+      function goDirectory() { window.location.href = '/ui/schools'; }
+
+      function onLogout() {
+        SchoolAuth.logout();  // 清态由下面的 watch 统一处理
+      }
+
+      async function cancelGrade(s, grade) {
+        try {
+          await SchoolAuth.api('/api/v1/subscriptions/' + s.school_id + '/grades/' + encodeURIComponent(grade), { method: 'DELETE' });
+          s.grades = s.grades.filter(g => g !== grade);
+          if (s.grades.length === 0) {
+            subs.value = subs.value.filter(x => x.school_id !== s.school_id);
+            delete links[s.school_id];
+          }
+          ElementPlus.ElMessage.success('已取消 ' + s.name + ' · ' + gradeZh(grade));
+        } catch (e) {
+          ElementPlus.ElMessage.error(e.message);
+        }
+      }
+
+      async function cancelSchool(s) {
+        try {
+          await ElementPlus.ElMessageBox.confirm('确定取消对「' + s.name + '」的全部订阅吗？', '取消订阅', {
+            confirmButtonText: '确定取消',
+            cancelButtonText: '再想想',
+            type: 'warning'
+          });
+        } catch (e) { return; }  // 用户点了「再想想」
+        try {
+          await SchoolAuth.api('/api/v1/subscriptions/' + s.school_id, { method: 'DELETE' });
+          subs.value = subs.value.filter(x => x.school_id !== s.school_id);
+          delete links[s.school_id];
+          ElementPlus.ElMessage.success('已取消对 ' + s.name + ' 的订阅');
+        } catch (e) {
+          ElementPlus.ElMessage.error(e.message);
+        }
+      }
+
+      onMounted(async () => {
+        // init 设置 auth.user 会触发上面的 watch 自动 loadAll；未登录则直接关掉加载态
+        const user = await SchoolAuth.init();
+        if (!user) loading.value = false;
+      });
+
+      // 登录（含会话失效后重新登录）→ 加载订阅；退出/会话失效 → 清空页面数据
+      watch(() => auth.user, (u, prev) => {
+        if (u && !prev) loadAll();
+        if (!u) {
+          subs.value = [];
+          for (const key of Object.keys(links)) delete links[key];
+        }
+      });
+
+      return {
+        auth, SchoolAuth, subs, links, loading, year,
+        gradeZh, gradeLabel, fmtDate, goDirectory, onLogout, cancelGrade, cancelSchool
+      };
+    }
+  });
+
+  app.component('auth-modal', SchoolAuth.AuthModal);
+  app.component('change-password-modal', SchoolAuth.ChangePasswordModal);
+  app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
+  app.mount('#app');
+})();
+</script>
+</body>
+</html>
