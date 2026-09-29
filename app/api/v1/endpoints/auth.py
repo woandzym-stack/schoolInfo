@@ -8,6 +8,7 @@ from app.core.auth import (
     get_current_user,
     set_auth_cookie,
 )
+from app.core.config import settings
 from app.core.db import get_async_db
 from app.core.rate_limit import get_client_ip
 from app.models.users import Users
@@ -33,7 +34,8 @@ async def register(
     - 注册成功直接种 JWT Cookie（注册即登录），注册 IP 入库供滥用追溯
     """
     ip = get_client_ip(request)
-    await auth_service.check_register_rate(ip)
+    if settings.RUN_MODE=="prod": 
+        await auth_service.check_register_rate(ip)
 
     user, token = await auth_service.register(db, body.username, body.password, body.email, ip)
     set_auth_cookie(response, token)
