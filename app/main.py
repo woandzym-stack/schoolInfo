@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 import jinja2
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
@@ -40,28 +42,22 @@ async def lifespan(app: FastAPI):
     # 针对 LLM 长耗时/流式场景的连接池配置
     limits = httpx.Limits(
         max_keepalive_connections=50,  # 维持的最大空闲连接数，减少频繁 TLS 握手的开销
-        max_connections=500,           # 最大并发连接数（结合你的服务器配置及预期 QPS 调整）
-        keepalive_expiry=30.0          # 空闲连接保持时长(秒)
+        max_connections=500,  # 最大并发连接数（结合你的服务器配置及预期 QPS 调整）
+        keepalive_expiry=30.0,  # 空闲连接保持时长(秒)
     )
 
-    app.state.http_client = httpx.AsyncClient(
-        http2=True, 
-        timeout=httpx.Timeout(300.0, connect=10.0),
-        limits=limits
-    )
+    app.state.http_client = httpx.AsyncClient(http2=True, timeout=httpx.Timeout(300.0, connect=10.0), limits=limits)
     logger.info("LLM Gateway HTTP/2 Client Initialized.")
 
     try:
         yield
-    finally:              
+    finally:
         await app.state.http_client.aclose()
         logger.info("LLM Gateway HTTP/2 Client Closed.")
         logger.info("Application shutting down...")
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    lifespan=lifespan
-)
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 # 大响应体压缩（如学校名录 700KB+ → ~100KB）；SSE 小 chunk 低于阈值不受影响
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(LogMiddleware)
@@ -78,7 +74,8 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 app.include_router(ui_router, prefix="/ui", tags=["UI"])
 
-@app.get("/")
+
+@app.get("/", include_in_schema=False)
 async def root():
-    logger.info("Root endpoint accessed")
-    return {"message": "Welcome to Python Web!"}
+    """首页直达学校名录页：用户访问 https://school.ddup.app/ 无需再输入 /ui/schools"""
+    return FileResponse(Path(__file__).parent / "static" / "schools.html")
