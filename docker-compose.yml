@@ -1,38 +1,46 @@
-version: '3.8' # 建议显式声明版本号
-
+# 服务器生产部署（与 zym-learn-service 同一台机器，共用容器化 Nginx）
+# 使用方式：服务器上 git clone 本仓库后，cp .env.example .env.production 并按需修改
 services:
-  web: 
-    image: ${PROJECT_NAME:-shcoolinfo}:${IMAGE_TAG:-latest}
-    platform: linux/amd64
-    
-    # 容器名变量化，防止同主机多项目冲突。
-    container_name: ${PROJECT_NAME:-myapp}-web
-    network_mode: "host" 
-    restart: always
-    stop_grace_period: 610s
-    shm_size: '1g'
-    deploy:
-      resources:
-        limits:
-          memory: 4g
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "3"    
-    command: >
-      gunicorn app.main:app
-      -w 4
-      -k uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:${APP_PORT:-8000}
-      --timeout 600
-      --graceful-timeout 600
-      --keep-alive 120
-      --backlog 2048
-      --access-logfile -
-      --error-logfile -
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - ./logs:/app/logs
+  schoolinfo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shcoolinfo:latest
+    container_name: zym-schoolinfo
+    restart: unless-stopped
     env_file:
-      - .env
+      - .env.production
+    environment:
+      - TZ=Asia/Shanghai
+    # 只绑到 127.0.0.1，外网完全由 Nginx 转发，容器端口不直接暴露
+    # 宿主机 8007（learn-service 已占 8006）→ 容器 8008（Dockerfile CMD 监听端口）
+    ports:
+      - "127.0.0.1:8007:8008"
+    volumes:
+      # 源代码整体挂载：更新代码只需 git pull + docker compose restart，无需重建镜像
+      # 注意：仅当依赖（pyproject.toml/poetry.lock）变化时才需要 docker compose build
+      - ./app:/app/app
+      # 日志持久化到宿主机，方便排查
+      - ./logs:/app/logs
+    # Linux 下让容器内能用 host.docker.internal 访问宿主机的 MySQL / Redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      # 根路径 / 返回 200 即视为健康（app/main.py 的 root()）
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8008/', timeout=3).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - zym-shared
+
+# 共享网络：让 Nginx 容器能通过容器名 zym-schoolinfo 访问本应用
+networks:
+  zym-shared:
+    external: true
