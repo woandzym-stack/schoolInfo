@@ -15,6 +15,17 @@
     --slate: #5A6B85;
     --hairline: #D9DFE8;
     --card: #FFFFFF;
+
+    /* Element Plus 主色改为墨蓝。必须放 :root：弹窗/下拉/确认框 teleport
+       到 body，挂在 #app 上会回落到默认蓝色主题 */
+    --el-color-primary: #1E2A44;
+    --el-color-primary-light-3: #4A5878;
+    --el-color-primary-light-5: #7A86A3;
+    --el-color-primary-light-7: #AAB2C6;
+    --el-color-primary-light-8: #C3C9D8;
+    --el-color-primary-light-9: #E8EAF0;
+    --el-color-primary-dark-2: #16203A;
+    --el-border-radius-base: 4px;
   }
   * { box-sizing: border-box; }
   [v-cloak] { display: none; }
@@ -24,16 +35,6 @@
     color: var(--ink);
     font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
-  }
-  #app {
-    --el-color-primary: #1E2A44;
-    --el-color-primary-light-3: #4A5878;
-    --el-color-primary-light-5: #7A86A3;
-    --el-color-primary-light-7: #AAB2C6;
-    --el-color-primary-light-8: #C3C9D8;
-    --el-color-primary-light-9: #E8EAF0;
-    --el-color-primary-dark-2: #16203A;
-    --el-border-radius-base: 4px;
   }
   .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
 
@@ -144,9 +145,11 @@
 
   .site-footer {
     border-top: 1px solid var(--hairline);
-    padding: 18px 0 26px;
-    color: var(--slate); font-size: 13px;
-    background: var(--card);
+    padding: 18px 0 28px;
+    color: var(--slate);
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.8;
   }
 </style>
 </head>

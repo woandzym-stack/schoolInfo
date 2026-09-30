@@ -18,6 +18,18 @@
     --band2: #4A6FA5;
     --band3: #8A94A6;
     --card: #FFFFFF;
+
+    /* Element Plus 主色改为墨蓝，印泥红只留给插班动作。
+       必须放 :root：dialog / 下拉 / 确认框等弹出层 teleport 到 body，
+       若挂在 #app 上，弹出层会回落到 Element Plus 默认蓝色主题 */
+    --el-color-primary: #1E2A44;
+    --el-color-primary-light-3: #4A5878;
+    --el-color-primary-light-5: #7A86A3;
+    --el-color-primary-light-7: #AAB2C6;
+    --el-color-primary-light-8: #C3C9D8;
+    --el-color-primary-light-9: #E8EAF0;
+    --el-color-primary-dark-2: #16203A;
+    --el-border-radius-base: 4px;
   }
   * { box-sizing: border-box; }
   [v-cloak] { display: none; }
@@ -27,17 +39,6 @@
     color: var(--ink);
     font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
-  }
-  /* Element Plus 主色改为墨蓝，印泥红只留给插班动作 */
-  #app {
-    --el-color-primary: #1E2A44;
-    --el-color-primary-light-3: #4A5878;
-    --el-color-primary-light-5: #7A86A3;
-    --el-color-primary-light-7: #AAB2C6;
-    --el-color-primary-light-8: #C3C9D8;
-    --el-color-primary-light-9: #E8EAF0;
-    --el-color-primary-dark-2: #16203A;
-    --el-border-radius-base: 4px;
   }
 
   .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
@@ -314,6 +315,13 @@
     font-size: 12px;
     text-align: center;
     line-height: 1.8;
+  }
+
+  /* ---------- 订阅弹窗 ---------- */
+  .sub-dialog { border-radius: 6px; }
+  .sub-dialog .el-dialog__title {
+    font-family: "Noto Serif TC", serif;
+    font-weight: 700; letter-spacing: 1px;
   }
 
   /* ---------- 移动端 ---------- */
@@ -623,7 +631,7 @@
   <auth-modal></auth-modal>
 
   <!-- 订阅年级选择弹窗：按学校学段出 P1-P6 / S1-S6 选项，外加「全部年级」 -->
-  <el-dialog v-model="subDialog.visible" :title="'订阅 · ' + (subDialog.school ? subDialog.school.name : '')"
+  <el-dialog v-model="subDialog.visible" class="sub-dialog" :title="'订阅 · ' + (subDialog.school ? subDialog.school.name : '')"
              width="420px" align-center append-to-body>
     <div v-if="subDialog.school">
       <el-checkbox v-model="subDialog.all" @change="onSubAllChange">全部年级</el-checkbox>

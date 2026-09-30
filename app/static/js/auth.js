@@ -9,6 +9,55 @@
  * 登录态约定：JWT 在 HttpOnly Cookie 里，前端不接触 token；所有请求同源 fetch 自动携带。
  */
 window.SchoolAuth = (function () {
+  // 弹窗样式随模块自带：el-dialog append-to-body 后 teleport 到 <body>，
+  // 脱离页面 #app 作用域，页面里的样式覆盖不到它，必须在这里注入。
+  // 色值优先取页面 :root 变量，兜底值与站点主题（墨蓝/印章红/衬线刊头）一致。
+  function _injectStyle() {
+    if (document.getElementById('school-auth-style')) return;
+    const el = document.createElement('style');
+    el.id = 'school-auth-style';
+    el.textContent = [
+      '.auth-dialog { border-radius: 6px; }',
+      '.auth-dialog .el-dialog__header { margin-right: 0; padding-bottom: 6px; }',
+      '.auth-dialog .el-dialog__title {',
+      '  font-family: "Noto Serif TC", serif; font-weight: 700; letter-spacing: 1px;',
+      '}',
+      '.auth-brand { display: flex; align-items: center; gap: 10px; }',
+      '.auth-brand-seal {',
+      '  width: 34px; height: 34px; flex: none;',
+      '  background: var(--seal, #B3392E); color: #FFF7F0;',
+      '  font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 19px;',
+      '  display: inline-flex; align-items: center; justify-content: center;',
+      '  border-radius: 5px;',
+      '  box-shadow: 0 2px 5px rgba(179, 57, 46, .3), inset 0 0 0 2px rgba(255, 247, 240, .35);',
+      '  transform: rotate(-3deg); user-select: none;',
+      '}',
+      '.auth-brand-name {',
+      '  font-family: "Noto Serif TC", serif; font-size: 17px; font-weight: 700;',
+      '  color: var(--ink, #1E2A44); letter-spacing: 1px;',
+      '}',
+      '.auth-dialog .el-tabs__nav-wrap::after { background: var(--hairline, #D9DFE8); height: 1px; }',
+      '.auth-dialog .el-tabs__item {',
+      '  font-family: "Noto Serif TC", serif; font-size: 15px; font-weight: 600;',
+      '  color: var(--slate, #5A6B85);',
+      '}',
+      '.auth-dialog .el-tabs__item:hover, .auth-dialog .el-tabs__item.is-active { color: var(--ink, #1E2A44); }',
+      '.auth-dialog .el-tabs__active-bar { background: var(--seal, #B3392E); height: 3px; }',
+      '.auth-dialog .el-input__wrapper { border-radius: 4px; }',
+      '.auth-dialog .el-button--primary {',
+      '  --el-button-bg-color: var(--ink, #1E2A44);',
+      '  --el-button-border-color: var(--ink, #1E2A44);',
+      '  --el-button-hover-bg-color: var(--el-color-primary-light-3, #4A5878);',
+      '  --el-button-hover-border-color: var(--el-color-primary-light-3, #4A5878);',
+      '  --el-button-active-bg-color: var(--el-color-primary-dark-2, #16203A);',
+      '  --el-button-active-border-color: var(--el-color-primary-dark-2, #16203A);',
+      '  font-weight: 700; border-radius: 4px; letter-spacing: 2px;',
+      '}',
+    ].join('\n');
+    document.head.appendChild(el);
+  }
+  _injectStyle();
+
   const state = Vue.reactive({
     user: null,            // {id, username, email} | null
     loaded: false,         // /auth/me 探测是否已完成
@@ -176,7 +225,10 @@ window.SchoolAuth = (function () {
   // ---------- 弹窗组件（模板依赖页面已全局注册 ElementPlus） ----------
   const AuthModal = {
     template: [
-      '<el-dialog v-model="state.dialogVisible" width="400px" :show-close="true" align-center append-to-body>',
+      '<el-dialog v-model="state.dialogVisible" class="auth-dialog" width="400px" :show-close="true" align-center append-to-body>',
+      '  <template #header>',
+      '    <div class="auth-brand"><span class="auth-brand-seal">插</span><span class="auth-brand-name">香港插班 · 学校名录</span></div>',
+      '  </template>',
       '  <el-tabs v-model="state.activeTab" stretch>',
       '    <el-tab-pane label="登录" name="login">',
       '      <el-form @submit.prevent>',
@@ -202,7 +254,7 @@ window.SchoolAuth = (function () {
 
   const ChangePasswordModal = {
     template: [
-      '<el-dialog v-model="state.pwdVisible" title="修改密码" width="400px" align-center append-to-body>',
+      '<el-dialog v-model="state.pwdVisible" class="auth-dialog" title="修改密码" width="400px" align-center append-to-body>',
       '  <el-form @submit.prevent>',
       '    <el-form-item><el-input v-model="state.pwdForm.old_password" type="password" placeholder="原密码" size="large" show-password /></el-form-item>',
       '    <el-form-item><el-input v-model="state.pwdForm.new_password" type="password" placeholder="新密码（至少 8 位，含字母和数字）" size="large" show-password /></el-form-item>',
