@@ -68,7 +68,6 @@
   .mast-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .nav-link { font-size: 14px; color: var(--slate); text-decoration: none; }
   .nav-link:hover { color: var(--ink); }
-  .auth-user { font-size: 14px; font-weight: 700; color: var(--ink); }
   .auth-btn {
     display: inline-flex; align-items: center;
     padding: 6px 12px;
@@ -84,6 +83,37 @@
   .auth-btn:hover { background: var(--el-color-primary-light-9); }
   .auth-btn.primary { background: var(--ink); color: #fff; }
   .auth-btn.primary:hover { background: var(--el-color-primary-light-3); }
+
+  /* ---------- 用户名菜单（修改密码 / 退出登录） ---------- */
+  .user-wrap { position: relative; }
+  .user-pop {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(30, 42, 68, .14);
+    padding: 8px;
+    min-width: 140px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .user-act {
+    display: inline-flex; justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .user-act:hover { background: var(--el-color-primary-light-9); }
+  .fade-enter-active, .fade-leave-active { transition: opacity .15s; }
+  .fade-enter-from, .fade-leave-to { opacity: 0; }
 
   /* ---------- 订阅卡片 ---------- */
   main.container { padding-top: 22px; padding-bottom: 40px; }
@@ -166,9 +196,16 @@
       <div class="mast-actions" v-if="auth.loaded">
         <a class="nav-link" href="/ui/schools">← 返回名录</a>
         <template v-if="auth.user">
-          <span class="auth-user">{{ auth.user.username }}</span>
-          <button type="button" class="auth-btn" @click="SchoolAuth.openChangePassword()">修改密码</button>
-          <button type="button" class="auth-btn" @click="onLogout">退出</button>
+          <div class="user-wrap">
+            <button type="button" class="auth-btn" :aria-expanded="showUserMenu"
+                    @click="showUserMenu = !showUserMenu">{{ auth.user.username }} ▾</button>
+            <transition name="fade">
+              <div class="user-pop" v-if="showUserMenu">
+                <button type="button" class="user-act" @click="showUserMenu = false; SchoolAuth.openChangePassword()">修改密码</button>
+                <button type="button" class="user-act" @click="showUserMenu = false; onLogout()">退出登录</button>
+              </div>
+            </transition>
+          </div>
         </template>
         <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
       </div>
@@ -318,6 +355,12 @@
         if (!user) loading.value = false;
       });
 
+      // 用户名菜单：点按钮展开，点页面其他位置收起
+      const showUserMenu = ref(false);
+      document.addEventListener('click', (e) => {
+        if (showUserMenu.value && !e.target.closest('.user-wrap')) showUserMenu.value = false;
+      });
+
       // 登录（含会话失效后重新登录）→ 加载订阅；退出/会话失效 → 清空页面数据
       watch(() => auth.user, (u, prev) => {
         if (u && !prev) loadAll();
@@ -328,7 +371,7 @@
       });
 
       return {
-        auth, SchoolAuth, subs, links, loading, year,
+        auth, SchoolAuth, subs, links, loading, year, showUserMenu,
         gradeZh, gradeLabel, fmtDate, goDirectory, onLogout, cancelGrade, cancelSchool
       };
     }

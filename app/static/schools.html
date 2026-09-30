@@ -92,7 +92,7 @@
     border-bottom: 1px solid var(--hairline);
   }
   .stagebar-inner { display: flex; gap: 36px; }
-  .stagebar-contact-wrap { margin-left: auto; align-self: center; position: relative; }
+  .stagebar-contact-wrap { align-self: center; position: relative; }
   .stagebar-contact {
     display: inline-flex; align-items: center;
     padding: 6px 12px;
@@ -145,10 +145,11 @@
   .fade-enter-from, .fade-leave-to { opacity: 0; }
 
   /* ---------- 登录入口 / 订阅按钮 ---------- */
-  .stagebar-auth { align-self: center; display: flex; align-items: center; gap: 14px; }
-  .auth-user { font-size: 14px; font-weight: 700; color: var(--ink); }
-  .auth-link { font-size: 14px; color: var(--slate); text-decoration: none; }
-  .auth-link:hover { color: var(--ink); }
+  .stagebar-auth { margin-left: auto; align-self: center; display: flex; align-items: center; gap: 10px; }
+  .stagebar-auth a.stagebar-contact { text-decoration: none; }
+  .user-wrap { position: relative; }
+  .user-pop { min-width: 140px; padding: 8px; }
+  .user-pop .contact-act { width: 100%; }
   .auth-btn {
     display: inline-flex; align-items: center;
     padding: 6px 12px;
@@ -257,8 +258,11 @@
   .band-3 { color: var(--band3); background: rgba(138, 148, 166, .10); border: 1px solid rgba(138, 148, 166, .35); }
   .band-na { color: var(--slate); background: transparent; border: 1px dashed var(--hairline); font-weight: 400; }
 
-  /* ---------- 操作按钮 ---------- */
+  /* ---------- 操作按钮：2×2 布局（官网+插班申请 / 学校详情+订阅） ---------- */
   .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ops > * { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .ops .site-btn, .ops .admission-btn, .ops .subscribe-btn { justify-content: center; }
+  .ops .el-dropdown .admission-btn { width: 100%; }
   .site-btn {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 6px 12px;
@@ -392,6 +396,21 @@
         @click="stage = t.key">
         {{ t.label }}<span class="cnt" v-if="!loading">{{ t.count }}</span>
       </button>
+      <div class="stagebar-auth" v-if="auth.loaded">
+        <template v-if="auth.user">
+          <a class="stagebar-contact" href="/ui/subscriptions">我的订阅</a>
+          <div class="user-wrap">
+            <button type="button" class="stagebar-contact" :aria-expanded="showUserMenu"
+                    @click="showUserMenu = !showUserMenu">{{ auth.user.username }} ▾</button>
+            <transition name="fade">
+              <div class="contact-pop user-pop" v-if="showUserMenu">
+                <button type="button" class="contact-act" @click="showUserMenu = false; onLogout()">退出登录</button>
+              </div>
+            </transition>
+          </div>
+        </template>
+        <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
+      </div>
       <div class="stagebar-contact-wrap">
         <button type="button" class="stagebar-contact" :aria-expanded="showContact" @click="showContact = !showContact">联系我们</button>
         <transition name="fade">
@@ -403,14 +422,6 @@
             </div>
           </div>
         </transition>
-      </div>
-      <div class="stagebar-auth" v-if="auth.loaded">
-        <template v-if="auth.user">
-          <a class="auth-link" href="/ui/subscriptions">我的订阅</a>
-          <span class="auth-user">{{ auth.user.username }}</span>
-          <button type="button" class="auth-btn" @click="onLogout">退出</button>
-        </template>
-        <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
       </div>
     </div>
   </nav>
@@ -509,14 +520,11 @@
             <span class="muted">{{ scope.row.phone || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="360" fixed="right">
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="scope">
             <div class="ops">
               <a v-if="scope.row.url" class="site-btn" :href="scope.row.url" target="_blank" rel="noopener">官网 ↗</a>
               <span v-else class="site-btn disabled">官网 ↗</span>
-
-              <a v-if="scope.row.detail_url" class="site-btn" :href="scope.row.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
-              <span v-else class="site-btn disabled">学校详情 ↗</span>
 
               <button v-if="scope.row.admission_link_count === 1"
                       class="admission-btn"
@@ -543,6 +551,9 @@
                 </template>
               </el-dropdown>
               <span v-else class="admission-btn disabled">暂无插班入口</span>
+
+              <a v-if="scope.row.detail_url" class="site-btn" :href="scope.row.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
+              <span v-else class="site-btn disabled">学校详情 ↗</span>
 
               <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[scope.row.id] }"
                       @click="openSubscribe(scope.row)">
@@ -576,9 +587,6 @@
             <a v-if="s.url" class="site-btn" :href="s.url" target="_blank" rel="noopener">官网 ↗</a>
             <span v-else class="site-btn disabled">官网 ↗</span>
 
-            <a v-if="s.detail_url" class="site-btn" :href="s.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
-            <span v-else class="site-btn disabled">学校详情 ↗</span>
-
             <button v-if="s.admission_link_count === 1"
                     class="admission-btn"
                     type="button"
@@ -604,6 +612,9 @@
               </template>
             </el-dropdown>
             <span v-else class="admission-btn disabled">暂无插班入口</span>
+
+            <a v-if="s.detail_url" class="site-btn" :href="s.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
+            <span v-else class="site-btn disabled">学校详情 ↗</span>
 
             <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[s.id] }"
                     @click="openSubscribe(s)">
@@ -682,11 +693,15 @@
       // 联系我们弹层：点按钮展开，点页面其他位置收起
       const showContact = ref(false);
       const copied = ref(false);
+      // 用户名弹层（退出登录入口）：同样的展开/收起交互
+      const showUserMenu = ref(false);
       function onDocClick(e) {
-        if (!showContact.value) return;
-        if (!e.target.closest('.stagebar-contact-wrap')) {
+        if (showContact.value && !e.target.closest('.stagebar-contact-wrap')) {
           showContact.value = false;
           copied.value = false;
+        }
+        if (showUserMenu.value && !e.target.closest('.user-wrap')) {
+          showUserMenu.value = false;
         }
       }
       document.addEventListener('click', onDocClick);
@@ -1067,7 +1082,7 @@
         hasActiveFilter, clearFilters,
         currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
-        showContact, copied, copyEmail,
+        showContact, copied, copyEmail, showUserMenu,
         linksCache, linksLoading, ensureLinks, openSingleAdmission,
         auth, SchoolAuth, onLogout, mySubs, subDialog, subGradeOptions,
         openSubscribe, onSubAllChange, submitSubscribe
