@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     PRODUCT_IP: Optional[str] = None
 
-    GMAIL_APP_PASSWORD:str =None
+    GMAIL_APP_PASSWORD: Optional[str] = None
 
     GMAIL_SENDER:str="zhouopenclaw@gmail.com"
 
