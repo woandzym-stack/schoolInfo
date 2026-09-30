@@ -262,7 +262,6 @@
   .ops { display: flex; gap: 8px; flex-wrap: wrap; }
   .ops > * { flex: 1 1 calc(50% - 4px); min-width: 0; }
   .ops .site-btn, .ops .admission-btn, .ops .subscribe-btn { justify-content: center; }
-  .ops .el-dropdown .admission-btn { width: 100%; }
   .site-btn {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 6px 12px;
@@ -271,6 +270,7 @@
     color: var(--ink); text-decoration: none;
     font-size: 13px; font-weight: 500;
     background: #fff;
+    white-space: nowrap;
     transition: background .15s;
   }
   .site-btn:hover { background: var(--el-color-primary-light-9); }
@@ -286,6 +286,7 @@
     font-size: 13px; font-weight: 500;
     text-decoration: none; cursor: pointer;
     font-family: inherit;
+    white-space: nowrap;
     transition: background .15s;
   }
   .admission-btn:hover { background: var(--seal-dark); }
@@ -293,7 +294,29 @@
   .admission-btn.disabled, .admission-btn.disabled:hover {
     background: #E9ECF1; color: #9AA4B2; cursor: not-allowed;
   }
-  .ops .el-dropdown .admission-btn { outline: none; }
+
+  /* ---------- 插班申请链接弹窗 ---------- */
+  .adm-loading { padding: 24px 0; text-align: center; color: var(--slate); font-size: 14px; }
+  .adm-loading a { color: var(--seal); text-decoration: none; cursor: pointer; }
+  .adm-loading a:hover { text-decoration: underline; }
+  .adm-link-list { display: flex; flex-direction: column; gap: 8px; }
+  .adm-link-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--hairline); border-radius: 6px;
+    color: var(--ink); text-decoration: none;
+    font-size: 14px;
+    transition: border-color .15s, background .15s;
+  }
+  .adm-link-item:hover { border-color: rgba(179, 57, 46, .5); background: rgba(179, 57, 46, .04); }
+  .adm-link-item .t { flex: 1; font-weight: 500; }
+  .adm-link-item .g {
+    font-size: 12px; color: var(--slate);
+    border: 1px solid var(--hairline); border-radius: 3px;
+    padding: 1px 7px; background: #FAFBFD;
+    white-space: nowrap;
+  }
+  .adm-link-item .go { color: var(--seal); font-weight: 700; }
 
   /* ---------- 展开行 ---------- */
   .detail-grid {
@@ -526,30 +549,12 @@
               <a v-if="scope.row.url" class="site-btn" :href="scope.row.url" target="_blank" rel="noopener">官网 ↗</a>
               <span v-else class="site-btn disabled">官网 ↗</span>
 
-              <button v-if="scope.row.admission_link_count === 1"
+              <button v-if="scope.row.admission_link_count > 0"
                       class="admission-btn"
                       type="button"
-                      :disabled="!!linksLoading[scope.row.id]"
-                      @click="openSingleAdmission(scope.row)">
-                {{ linksLoading[scope.row.id] ? '加载中…' : '插班申请' }}
+                      @click="openAdmissionDialog(scope.row)">
+                插班申请
               </button>
-              <el-dropdown v-else-if="scope.row.admission_link_count > 1" trigger="click"
-                           @visible-change="v => v && ensureLinks(scope.row)">
-                <button class="admission-btn" type="button">插班申请（{{ scope.row.admission_link_count }}）▾</button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item v-if="!linksCache[scope.row.id]" :disabled="!!linksLoading[scope.row.id]"
-                                      @click="ensureLinks(scope.row)">
-                      {{ linksLoading[scope.row.id] ? '加载中…' : '加载失败，点击重试' }}
-                    </el-dropdown-item>
-                    <el-dropdown-item v-for="(link, i) in linksCache[scope.row.id] || []" :key="i">
-                      <a :href="link.url" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">
-                        {{ link.link_text || '申请链接' }}<span v-if="link.grades && link.grades !== 'all'" class="muted">（{{ gradeLabel(link.grades) }}）</span>
-                      </a>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
               <span v-else class="admission-btn disabled">暂无插班入口</span>
 
               <a v-if="scope.row.detail_url" class="site-btn" :href="scope.row.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
@@ -587,30 +592,12 @@
             <a v-if="s.url" class="site-btn" :href="s.url" target="_blank" rel="noopener">官网 ↗</a>
             <span v-else class="site-btn disabled">官网 ↗</span>
 
-            <button v-if="s.admission_link_count === 1"
+            <button v-if="s.admission_link_count > 0"
                     class="admission-btn"
                     type="button"
-                    :disabled="!!linksLoading[s.id]"
-                    @click="openSingleAdmission(s)">
-              {{ linksLoading[s.id] ? '加载中…' : '插班申请' }}
+                    @click="openAdmissionDialog(s)">
+              插班申请
             </button>
-            <el-dropdown v-else-if="s.admission_link_count > 1" trigger="click"
-                         @visible-change="v => v && ensureLinks(s)">
-              <button class="admission-btn" type="button">插班申请（{{ s.admission_link_count }}）▾</button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="!linksCache[s.id]" :disabled="!!linksLoading[s.id]"
-                                    @click="ensureLinks(s)">
-                    {{ linksLoading[s.id] ? '加载中…' : '加载失败，点击重试' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item v-for="(link, i) in linksCache[s.id] || []" :key="i">
-                    <a :href="link.url" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">
-                      {{ link.link_text || '申请链接' }}<span v-if="link.grades && link.grades !== 'all'" class="muted">（年级 {{ link.grades }}）</span>
-                    </a>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
             <span v-else class="admission-btn disabled">暂无插班入口</span>
 
             <a v-if="s.detail_url" class="site-btn" :href="s.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
@@ -658,6 +645,25 @@
       <el-button type="primary" style="width:100%;margin-top:18px;" :loading="subDialog.submitting"
                  @click="submitSubscribe">确认订阅</el-button>
     </div>
+  </el-dialog>
+
+  <!-- 插班申请链接弹窗：点击「插班申请」统一列出该校全部申请链接（含年级标签） -->
+  <el-dialog v-model="admDialog.visible" class="sub-dialog" :title="'插班申请 · ' + (admDialog.school ? admDialog.school.name : '')"
+             width="min(92vw, 560px)" align-center append-to-body>
+    <template v-if="admDialog.school">
+      <div v-if="linksLoading[admDialog.school.id]" class="adm-loading">正在加载申请链接…</div>
+      <div v-else-if="!linksCache[admDialog.school.id]" class="adm-loading">
+        加载失败，<a @click="retryLinks">点击重试</a>
+      </div>
+      <div v-else class="adm-link-list">
+        <a v-for="(link, i) in linksCache[admDialog.school.id]" :key="i"
+           class="adm-link-item" :href="link.url" target="_blank" rel="noopener">
+          <span class="t">{{ link.link_text || '申请链接' }}</span>
+          <span v-if="link.grades && link.grades !== 'all'" class="g">{{ gradeLabel(link.grades) }}</span>
+          <span class="go">↗</span>
+        </a>
+      </div>
+    </template>
   </el-dialog>
 </div>
 
@@ -876,7 +882,7 @@
         return links;
       }
 
-      // 多链接场景：下拉展开时预取；失败时下拉内提供重试项
+      // 打开弹窗即触发预取；结果缓存在 linksCache，重复打开不再请求
       async function ensureLinks(school) {
         if (linksCache[school.id] || linksLoading[school.id]) return;
         linksLoading[school.id] = true;
@@ -889,32 +895,15 @@
         }
       }
 
-      // 单链接场景：点击直接开新标签。window.open 必须在点击同步栈里调用，
-      // 否则被浏览器弹窗拦截；先开空白页占位，拿到链接后再跳转，失败则关掉。
-      async function openSingleAdmission(school) {
-        if (linksLoading[school.id]) return;
-        const cached = linksCache[school.id];
-        if (cached && cached.length === 1) {
-          window.open(cached[0].url, '_blank', 'noopener');
-          return;
-        }
-        const win = window.open('', '_blank');
-        linksLoading[school.id] = true;
-        try {
-          const links = await fetchAdmissionLinks(school.id);
-          if (links.length === 1) {
-            if (win) win.location.href = links[0].url;
-            else window.open(links[0].url, '_blank', 'noopener');
-          } else {
-            if (win) win.close();
-            ElementPlus.ElMessage.warning(links.length === 0 ? '该校暂无插班入口' : '链接数据已更新，请重试');
-          }
-        } catch (e) {
-          if (win) win.close();
-          ElementPlus.ElMessage.error(e.message || '申请链接加载失败');
-        } finally {
-          linksLoading[school.id] = false;
-        }
+      // 插班申请弹窗：单链接/多链接统一弹窗列出，按钮文案固定「插班申请」
+      const admDialog = reactive({ visible: false, school: null });
+      function openAdmissionDialog(school) {
+        admDialog.school = school;
+        admDialog.visible = true;
+        ensureLinks(school);
+      }
+      function retryLinks() {
+        if (admDialog.school) ensureLinks(admDialog.school);
       }
 
       // ---------- 登录态与订阅 ----------
@@ -1083,7 +1072,7 @@
         currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
         showContact, copied, copyEmail, showUserMenu,
-        linksCache, linksLoading, ensureLinks, openSingleAdmission,
+        linksCache, linksLoading, ensureLinks, admDialog, openAdmissionDialog, retryLinks,
         auth, SchoolAuth, onLogout, mySubs, subDialog, subGradeOptions,
         openSubscribe, onSubAllChange, submitSubscribe
       };
