@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import time
 from collections import defaultdict
 from typing import Annotated, Any, Dict, List, Optional
@@ -12,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import AsyncSessionLocal, get_async_db
 from app.core.rate_limit import check_rate_limit, get_client_ip
+from app.core.task_store import redis_async
 from app.models.admission_links import AdmissionLinks
 from app.models.schools import Schools
 from app.schemas.response import SingleResponse
@@ -19,12 +21,20 @@ from app.services.db import weekly_run_log_service
 
 router = APIRouter()
 
-# ---------- 名录缓存 ----------
+# ---------- 名录缓存（L1 进程内 + L2 Redis） ----------
 # 学校名录是准静态数据（由导入脚本线下更新），而远端库性能较弱
-# （两次全表查询 ~0.9s，3800 行 ORM 物化再花数百 ms），因此把序列化后的
-# 完整响应体缓存在进程内：命中时 ~1ms，不再触碰数据库。
+# （两次全表查询 ~0.9s，3800 行 ORM 物化再花数百 ms），因此做两级缓存：
+#   L1 进程内（30s）：命中时 ~1ms，不碰 Redis；多 worker 间最多 30s 数据偏差
+#   L2 Redis（600s）：跨 gunicorn worker 共享，任意时刻全场至多一次 DB 重建
+# 重建由 SET NX 分布式锁保护，未抢到锁的进程等待他进程写回 L2 后直接读；
+# Redis 不可用时 fail-open 回退为进程内缓存 + 直查库（功能不受影响）。
 # 一致性策略：TTL 兜底 + 导入数据后用 ?refresh=1 主动刷新。
-_CACHE_TTL_SECONDS = 600
+_L1_TTL_SECONDS = 30
+_L2_TTL_SECONDS = 600
+_L2_KEY = "school:directory:body"
+_L2_LOCK_KEY = "school:directory:rebuild-lock"
+_L2_LOCK_TTL_SECONDS = 30  # 重建实测 ~5-7s，留足余量；持锁进程崩溃时锁自动过期
+_L2_WAIT_SECONDS = 15  # 未抢到锁时等待他进程重建的最长时长，超时自行重建兜底
 _cache_lock = asyncio.Lock()
 _cache_body: Optional[bytes] = None
 _cache_data: Optional[List[Dict[str, Any]]] = None
@@ -34,8 +44,8 @@ _cache_expires_at: float = 0.0
 # 申请链接是核心数据资产：名录接口只返回链接数量，链接本体按学校逐个获取。
 # 爬全量需要逐校请求数千次，按 IP 双窗口限流可把单 IP 抓取拖到不可用的时间量级。
 # 限流实现见 app/core/rate_limit.py（Redis 固定窗口，fail-open）。
-_ADM_RATE_PER_MINUTE = 30   # 每 IP 每分钟最多取 30 所学校的链接
-_ADM_RATE_PER_DAY = 200     # 每 IP 每天最多取 200 所学校的链接
+_ADM_RATE_PER_MINUTE = 30  # 每 IP 每分钟最多取 30 所学校的链接
+_ADM_RATE_PER_DAY = 200  # 每 IP 每天最多取 200 所学校的链接
 
 
 async def _check_adm_link_rate(ip: str) -> None:
@@ -93,8 +103,21 @@ async def _load_directory() -> List[Dict[str, Any]]:
     data: List[Dict[str, Any]] = []
     for row in school_rows:
         (
-            s_id, name, simple_name, url, s_type, district, stage, banding, school_net,
-            language, gender, religion, address, phone, email,
+            s_id,
+            name,
+            simple_name,
+            url,
+            s_type,
+            district,
+            stage,
+            banding,
+            school_net,
+            language,
+            gender,
+            religion,
+            address,
+            phone,
+            email,
         ) = row
         data.append(
             {
@@ -119,45 +142,113 @@ async def _load_directory() -> List[Dict[str, Any]]:
     return data
 
 
-def _serialize(data: List[Dict[str, Any]]) -> bytes:
-    """与 SingleResponse 一致的响应信封，序列化一次、缓存复用。"""
+def _serialize(data: List[Dict[str, Any]]) -> str:
+    """与 SingleResponse 一致的响应信封，序列化一次、L1/L2 缓存复用。"""
     return json.dumps(
         {"data": data, "errCode": 200, "errMsg": None},
         ensure_ascii=False,
-    ).encode("utf-8")
+    )
+
+
+def _set_l1(data: List[Dict[str, Any]], body_str: str) -> List[Dict[str, Any]]:
+    """写入进程内 L1 缓存（body 按字节保存，响应时零拷贝直出），返回 data。"""
+    global _cache_body, _cache_data, _cache_expires_at
+    _cache_data = data
+    _cache_body = body_str.encode("utf-8")
+    _cache_expires_at = time.monotonic() + _L1_TTL_SECONDS
+    return data
+
+
+def _set_l1_from_body(body_str: str) -> List[Dict[str, Any]]:
+    """用 L2 读到的响应体回填 L1（data 从信封中解析，供搜索过滤用）。"""
+    return _set_l1(json.loads(body_str)["data"], body_str)
+
+
+async def _read_l2() -> Optional[str]:
+    """读 L2 Redis 缓存；未命中或 Redis 故障均返回 None（fail-open）。"""
+    try:
+        value: Optional[str] = await redis_async.get(_L2_KEY)
+        return value
+    except Exception as e:
+        logger.warning(f"名录缓存 L2 读取失败，按未命中处理: {e}")
+        return None
+
+
+async def _rebuild_and_publish() -> List[Dict[str, Any]]:
+    """从数据库重建名录，写回 L2（供所有 worker 共享）并返回名录数据。"""
+    t0 = time.perf_counter()
+    data = await _load_directory()
+    body_str = _serialize(data)
+
+    try:
+        await redis_async.set(_L2_KEY, body_str, ex=_L2_TTL_SECONDS)
+    except Exception as e:
+        logger.warning(f"名录缓存 L2 写入失败，仅本进程 L1 生效: {e}")
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    link_total = sum(s["admission_link_count"] for s in data)
+    logger.info(
+        f"学校名录缓存已重建 | 学校数={len(data)} | 插班链接数={link_total} "
+        f"| 耗时={elapsed_ms:.0f}ms | 响应体={len(body_str.encode('utf-8')) / 1024:.0f}KB"
+    )
+    _set_l1(data, body_str)
+    return data
 
 
 async def _get_directory(refresh: bool = False) -> List[Dict[str, Any]]:
     """
-    获取全量名录（缓存命中直接返回内存中的 list）。
+    获取全量名录（L1 命中直接返回内存中的 list）。
 
     - 与 list_schools 共用同一份缓存与重建逻辑，避免两处代码漂移
-    - 重建时同时保存序列化字节（整页响应复用）和 list（搜索过滤用）
+    - L1 miss → 查 L2 Redis；L2 也 miss → 抢分布式锁重建，未抢到则等待他进程写回
+    - Redis 故障时降级为进程内缓存 + 直查库（仅 _cache_lock 保护）
     """
-    global _cache_body, _cache_data, _cache_expires_at
-
     if not refresh and _cache_data is not None and time.monotonic() < _cache_expires_at:
         return _cache_data
 
-    # 防止缓存过期瞬间的并发请求同时打穿到数据库（thundering herd）
+    # 防止缓存过期瞬间的并发请求同时打穿到数据库（thundering herd，进程内）
     async with _cache_lock:
         # 二次检查：等锁期间可能已有请求完成了刷新
         if not refresh and _cache_data is not None and time.monotonic() < _cache_expires_at:
             return _cache_data
 
-        t0 = time.perf_counter()
-        data = await _load_directory()
-        _cache_data = data
-        _cache_body = _serialize(data)
-        _cache_expires_at = time.monotonic() + _CACHE_TTL_SECONDS
+        # L2 命中：回填 L1 后直接返回，不触碰数据库
+        if not refresh:
+            body_str = await _read_l2()
+            if body_str is not None:
+                return _set_l1_from_body(body_str)
 
-        elapsed_ms = (time.perf_counter() - t0) * 1000
-        link_total = sum(s["admission_link_count"] for s in data)
-        logger.info(
-            f"学校名录缓存已重建 | 学校数={len(data)} | 插班链接数={link_total} "
-            f"| 耗时={elapsed_ms:.0f}ms | 响应体={len(_cache_body) / 1024:.0f}KB"
-        )
-        return data
+        # L2 未命中（或主动刷新）：抢分布式锁，保证跨进程只有一方重建
+        lock_token = f"{os.getpid()}:{time.monotonic()}"
+        got_lock = False
+        try:
+            got_lock = bool(await redis_async.set(_L2_LOCK_KEY, lock_token, nx=True, ex=_L2_LOCK_TTL_SECONDS))
+        except Exception as e:
+            logger.warning(f"名录重建锁获取异常，按未抢到处理: {e}")
+
+        if refresh or got_lock:
+            try:
+                return await _rebuild_and_publish()
+            finally:
+                # 仅释放自己持有的锁（token 不匹配说明锁已易主，不能删）
+                if got_lock:
+                    try:
+                        if await redis_async.get(_L2_LOCK_KEY) == lock_token:
+                            await redis_async.delete(_L2_LOCK_KEY)
+                    except Exception as e:
+                        logger.warning(f"名录重建锁释放失败（TTL 兜底自动过期）: {e}")
+
+        # 未抢到锁：轮询等待他进程重建完成，读回 L2
+        deadline = time.monotonic() + _L2_WAIT_SECONDS
+        while time.monotonic() < deadline:
+            await asyncio.sleep(0.3)
+            body_str = await _read_l2()
+            if body_str is not None:
+                return _set_l1_from_body(body_str)
+
+        # 等待超时（持锁进程可能崩溃）：自行重建兜底
+        logger.warning("等待他进程重建名录缓存超时，本进程自行重建兜底")
+        return await _rebuild_and_publish()
 
 
 @router.get("", response_model=SingleResponse, summary="获取全部学校（含插班链接数量）")
@@ -168,7 +259,8 @@ async def list_schools(refresh: bool = False) -> Response:
     - 数据量约千所，由前端一次性加载后按学段筛选/分页
     - stage: secondary=中学 / primary=小学；school_net 仅小学有值（'0' 表示不参与派位校网的直资/私立）
     - 插班链接本体不在此返回（防爬）：前端点击后调 /{school_id}/admission-links 按需获取
-    - 响应体进程内缓存 10 分钟；导入新数据后请求 ?refresh=1 可立即重建缓存
+    - 响应体两级缓存：进程内 L1 30s + Redis L2 600s（跨 worker 共享）；
+      导入新数据后请求 ?refresh=1 可立即重建两级缓存
     - 直接返回序列化好的 Response（绕开 response_model 逐对象校验），结构与 SingleResponse 一致
     """
     if not refresh and _cache_body is not None and time.monotonic() < _cache_expires_at:
@@ -210,11 +302,7 @@ async def search_schools(
         return SingleResponse(data=[])
 
     data = await _get_directory()
-    matched = [
-        s
-        for s in data
-        if kw in (s["name"] or "").lower() or kw in (s["simple_name"] or "").lower()
-    ]
+    matched = [s for s in data if kw in (s["name"] or "").lower() or kw in (s["simple_name"] or "").lower()]
     return SingleResponse(data=matched)
 
 
