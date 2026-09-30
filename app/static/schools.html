@@ -301,14 +301,21 @@
   .adm-loading a:hover { text-decoration: underline; }
   .adm-link-list { display: flex; flex-direction: column; gap: 8px; }
   .adm-link-item {
+    display: flex; align-items: stretch;
+    border: 1px solid var(--hairline); border-radius: 6px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .adm-link-item:hover { border-color: rgba(179, 57, 46, .5); }
+  .adm-link-item .main {
+    flex: 1; min-width: 0;
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px;
-    border: 1px solid var(--hairline); border-radius: 6px;
     color: var(--ink); text-decoration: none;
     font-size: 14px;
-    transition: border-color .15s, background .15s;
+    transition: background .15s;
   }
-  .adm-link-item:hover { border-color: rgba(179, 57, 46, .5); background: rgba(179, 57, 46, .04); }
+  .adm-link-item .main:hover { background: rgba(179, 57, 46, .04); }
   .adm-link-item .t { flex: 1; font-weight: 500; }
   .adm-link-item .g {
     font-size: 12px; color: var(--slate);
@@ -317,6 +324,17 @@
     white-space: nowrap;
   }
   .adm-link-item .go { color: var(--seal); font-weight: 700; }
+  .adm-link-item .report-btn {
+    border: none; border-left: 1px solid var(--hairline);
+    background: #FAFBFD;
+    color: var(--slate);
+    font-size: 12px; font-family: inherit;
+    padding: 0 12px;
+    cursor: pointer; white-space: nowrap;
+    transition: color .15s, background .15s;
+  }
+  .adm-link-item .report-btn:hover:not(:disabled) { color: var(--seal); background: rgba(179, 57, 46, .06); }
+  .adm-link-item .report-btn:disabled { color: #9AA4B2; cursor: default; }
 
   /* ---------- 展开行 ---------- */
   .detail-grid {
@@ -656,12 +674,19 @@
         加载失败，<a @click="retryLinks">点击重试</a>
       </div>
       <div v-else class="adm-link-list">
-        <a v-for="(link, i) in linksCache[admDialog.school.id]" :key="i"
-           class="adm-link-item" :href="link.url" target="_blank" rel="noopener">
-          <span class="t">{{ link.link_text || '申请链接' }}</span>
-          <span v-if="link.grades && link.grades !== 'all'" class="g">{{ gradeLabel(link.grades) }}</span>
-          <span class="go">↗</span>
-        </a>
+        <div v-for="(link, i) in linksCache[admDialog.school.id]" :key="i" class="adm-link-item">
+          <a class="main" :href="link.url" target="_blank" rel="noopener">
+            <span class="t">{{ link.link_text || '申请链接' }}</span>
+            <span v-if="link.grades && link.grades !== 'all'" class="g">{{ gradeLabel(link.grades) }}</span>
+            <span class="go">↗</span>
+          </a>
+          <button type="button" class="report-btn"
+                  :disabled="!!reportedLinks[reportKey(link)]"
+                  :title="reportedLinks[reportKey(link)] ? '已提交反馈' : '报告此链接错误'"
+                  @click="reportLink(link)">
+            {{ reportedLinks[reportKey(link)] ? '已反馈 ✓' : '报错' }}
+          </button>
+        </div>
       </div>
     </template>
   </el-dialog>
@@ -906,6 +931,40 @@
         if (admDialog.school) ensureLinks(admDialog.school);
       }
 
+      // 链接报错：匿名提交；会话内已反馈的链接置灰防重复提交
+      const reportedLinks = reactive({});  // 'schoolId|url' → true
+      function reportKey(link) {
+        return (admDialog.school ? admDialog.school.id : 0) + '|' + link.url;
+      }
+      async function reportLink(link) {
+        if (!admDialog.school || reportedLinks[reportKey(link)]) return;
+        let reason = null;
+        try {
+          const r = await ElementPlus.ElMessageBox.prompt(
+            '问题说明（可选），如：链接打不开 / 页面不存在 / 指向错误学校',
+            '报告链接错误',
+            { confirmButtonText: '提交', cancelButtonText: '取消', inputPlaceholder: '可留空直接提交' }
+          );
+          reason = (r.value || '').trim() || null;
+        } catch (e) { return; }  // 用户取消
+        try {
+          await SchoolAuth.api('/api/v1/schools/admission-links/report', {
+            method: 'POST',
+            body: {
+              school_id: admDialog.school.id,
+              url: link.url,
+              link_text: link.link_text || null,
+              grades: link.grades || null,
+              reason: reason
+            }
+          });
+          reportedLinks[reportKey(link)] = true;
+          ElementPlus.ElMessage.success('已收到反馈，感谢！');
+        } catch (e) {
+          ElementPlus.ElMessage.error(e.message || '提交失败，请稍后再试');
+        }
+      }
+
       // ---------- 登录态与订阅 ----------
       const auth = SchoolAuth.state;
       const mySubs = reactive({});  // schoolId → 聚合订阅记录（含 grades[]）
@@ -1073,6 +1132,7 @@
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
         showContact, copied, copyEmail, showUserMenu,
         linksCache, linksLoading, ensureLinks, admDialog, openAdmissionDialog, retryLinks,
+        reportedLinks, reportKey, reportLink,
         auth, SchoolAuth, onLogout, mySubs, subDialog, subGradeOptions,
         openSubscribe, onSubAllChange, submitSubscribe
       };

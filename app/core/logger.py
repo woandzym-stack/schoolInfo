@@ -34,10 +34,15 @@ def ai_filter(record):
     return record["extra"].get("channel") == "ai"
 
 
-# 2. 普通应用日志过滤器：排除掉 extra["channel"] == "ai" 的日志
-#    这样 AI 的海量日志就不会污染 app.log 和控制台
+# 2. 普通应用日志过滤器：排除掉独立通道（ai / link_report）的日志
+#    这样 AI 的海量日志和链接报错流水就不会污染 app.log 和控制台
 def app_filter(record):
-    return record["extra"].get("channel") != "ai"
+    return record["extra"].get("channel") not in ("ai", "link_report")
+
+
+# 3. 链接报错日志过滤器：只保留 extra["channel"] == "link_report" 的日志
+def link_report_filter(record) -> bool:
+    return record["extra"].get("channel") == "link_report"
 
 
 def setup_logging():
@@ -129,7 +134,30 @@ def setup_logging():
         filter=ai_filter,
     )
 
-    # 8. 接管 Uvicorn 和 FastAPI 的原生日志
+    # 8. 链接报错专用日志 (link_report.log) - 只接收链接报错流水
+    #    格式从简（时间 + 消息体），消息体为一行 JSON，便于 grep/审阅。
+    #    接口匿名且不限流，单文件加 10MB 上限防日志洪泛写满磁盘
+    #    （一行 ~200 字节，10MB ≈ 5 万条/文件，对正常反馈足够宽松）
+    def link_report_rotation(message, file):
+        file.seek(0, 2)
+        if file.tell() >= 10 * 1024 * 1024:
+            return True
+
+        current_date = message.record["time"].strftime("%Y-%m-%d")
+        return f"link_report_{current_date}.log" != Path(file.name).name
+
+    logger.add(
+        "logs/link_report_{time:YYYY-MM-DD}.log",
+        rotation=link_report_rotation,
+        retention="90 days",
+        level="INFO",
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{message}</level>",
+        encoding="utf-8",
+        enqueue=True,
+        filter=link_report_filter,
+    )
+
+    # 9. 接管 Uvicorn 和 FastAPI 的原生日志
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
     for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"):
         mod_logger = logging.getLogger(logger_name)

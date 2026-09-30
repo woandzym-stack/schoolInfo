@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from typing import Annotated, Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from loguru import logger
 from sqlmodel import select
@@ -16,6 +16,7 @@ from app.core.rate_limit import check_rate_limit, get_client_ip
 from app.core.task_store import redis_async
 from app.models.admission_links import AdmissionLinks
 from app.models.schools import Schools
+from app.schemas.link_report import LinkReportIn
 from app.schemas.response import SingleResponse
 from app.services.db import weekly_run_log_service
 
@@ -333,3 +334,44 @@ async def get_admission_links(
     return SingleResponse(
         data=[{"url": url, "link_text": link_text, "grades": grades} for url, link_text, grades in rows]
     )
+
+
+@router.post("/admission-links/report", response_model=SingleResponse, summary="报告插班链接错误")
+async def report_admission_link(
+    payload: LinkReportIn,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_async_db)],
+) -> SingleResponse:
+    """
+    用户在名录弹窗中报告失效/错误的插班链接（匿名，无需登录）。
+
+    - 提交前校验 url 确属该校当前链接（索引读），防止伪造垃圾报告
+    - 不落库：写独立日志通道 logs/link_report_*.log（一行一条 JSON），线下 grep 审阅
+    """
+    ip = get_client_ip(request)
+
+    exists = (
+        await db.exec(
+            select(AdmissionLinks.id).where(
+                AdmissionLinks.school_id == payload.school_id,
+                AdmissionLinks.url == payload.url,
+            )
+        )
+    ).first()
+    if not exists:
+        raise HTTPException(status_code=400, detail="该链接不存在或已更新，请刷新页面后重试")
+
+    logger.bind(channel="link_report").info(
+        json.dumps(
+            {
+                "school_id": payload.school_id,
+                "url": payload.url,
+                "link_text": payload.link_text,
+                "grades": payload.grades,
+                "reason": payload.reason,
+                "ip": ip,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return SingleResponse(data={"ok": True})
