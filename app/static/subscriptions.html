@@ -270,7 +270,7 @@
 <div id="app" v-cloak>
   <header class="masthead">
     <div class="container masthead-inner">
-      <div class="seal">订</div>
+      <div class="seal">插</div>
       <div>
         <h1>我的订阅</h1>
         <p class="sub">已订阅学校的插班申请入口，一页直达</p>
@@ -329,7 +329,7 @@
         <span class="mini-tag">{{ s.stage === 'primary' ? '小学' : '中学' }}</span>
         <span class="mini-tag" v-if="s.district">{{ s.district }}</span>
         <span class="sub-time">订阅于 {{ fmtDate(s.subscribed_at) }}</span>
-        <button type="button" class="sub-cancel" @click="cancelSchool(s)">全部取消</button>
+        <button type="button" class="sub-cancel" @click="cancelSchool(s)">取消订阅</button>
       </div>
       <div class="sub-grades">
         <span class="k">关注年级</span>
