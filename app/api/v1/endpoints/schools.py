@@ -25,13 +25,14 @@ router = APIRouter()
 # ---------- 名录缓存（L1 进程内 + L2 Redis） ----------
 # 学校名录是准静态数据（由导入脚本线下更新），而远端库性能较弱
 # （两次全表查询 ~0.9s，3800 行 ORM 物化再花数百 ms），因此做两级缓存：
-#   L1 进程内（30s）：命中时 ~1ms，不碰 Redis；多 worker 间最多 30s 数据偏差
-#   L2 Redis（600s）：跨 gunicorn worker 共享，任意时刻全场至多一次 DB 重建
+#   L1 进程内（1h）：命中时 ~1ms，不碰 Redis；多 worker 间最多 1h 数据偏差
+#   L2 Redis（1d）：跨 gunicorn worker 共享，任意时刻全场至多一次 DB 重建
 # 重建由 SET NX 分布式锁保护，未抢到锁的进程等待他进程写回 L2 后直接读；
 # Redis 不可用时 fail-open 回退为进程内缓存 + 直查库（功能不受影响）。
-# 一致性策略：TTL 兜底 + 导入数据后用 ?refresh=1 主动刷新。
-_L1_TTL_SECONDS = 30
-_L2_TTL_SECONDS = 600
+# 一致性策略：TTL 兜底 + 导入数据后用 ?refresh=1 主动刷新（TTL 已放宽到 1h/1d，
+# 依赖主动刷新保证及时性，导入脚本完成后务必调一次）。
+_L1_TTL_SECONDS = 60 * 60
+_L2_TTL_SECONDS = 24 * 60 * 60
 _L2_KEY = "school:directory:body"
 _L2_LOCK_KEY = "school:directory:rebuild-lock"
 _L2_LOCK_TTL_SECONDS = 30  # 重建实测 ~5-7s，留足余量；持锁进程崩溃时锁自动过期
@@ -263,7 +264,7 @@ async def list_schools(refresh: bool = False) -> Response:
     - 数据量约千所，由前端一次性加载后按学段筛选/分页
     - stage: secondary=中学 / primary=小学；school_net 仅小学有值（'0' 表示不参与派位校网的直资/私立）
     - 插班链接本体不在此返回（防爬）：前端点击后调 /{school_id}/admission-links 按需获取
-    - 响应体两级缓存：进程内 L1 30s + Redis L2 600s（跨 worker 共享）；
+    - 响应体两级缓存：进程内 L1 1h + Redis L2 1d（跨 worker 共享）；
       导入新数据后请求 ?refresh=1 可立即重建两级缓存
     - 直接返回序列化好的 Response（绕开 response_model 逐对象校验），结构与 SingleResponse 一致
     """

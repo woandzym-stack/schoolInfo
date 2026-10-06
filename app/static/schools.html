@@ -400,6 +400,191 @@
   }
   .mobile-card .addr { font-size: 12px; color: var(--slate); margin: 6px 0 10px; line-height: 1.6; }
 </style>
+<style id="accepted-ui-refinements">
+/* ===== 按确认意见做的界面优化 ===== */
+
+/* 顶部：低频操作去按钮化；用户入口保持清晰但降低视觉重量 */
+.stagebar-auth {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.top-nav-link,
+.user-trigger {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 9px 2px;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.top-nav-link { color: var(--slate); }
+/* “我的订阅”与“联系我们”保持完全一致的导航样式 */
+.top-contact-link {
+  color: var(--slate);
+  font-weight: 600;
+}
+.top-nav-link:hover,
+.user-trigger:hover { color: var(--ink); }
+.user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.user-trigger::before {
+  content: '';
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, var(--slate) 0 3px, transparent 3.5px),
+    radial-gradient(ellipse at 50% 78%, var(--slate) 0 6px, transparent 6.5px);
+  opacity: .8;
+}
+
+/* 插班资料更新时间：不是“插班状态”，只说明数据新鲜度 */
+.freshness-note {
+  margin: 18px 2px -4px;
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: right;
+}
+.freshness-note strong { color: var(--ink); font-weight: 600; }
+
+/* 操作区：官网/学校详情降级为轻量文字外链 */
+.site-text-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 2px;
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.site-text-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.site-text-link.disabled { color: #B4BCC9; pointer-events: none; }
+
+/* “插班提醒”是次级操作，不再使用红底 */
+.subscribe-btn,
+.subscribe-btn.subscribed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.subscribe-btn:hover,
+.subscribe-btn.subscribed:hover {
+  background: var(--el-color-primary-light-9);
+  border-color: #AAB2C6;
+}
+.subscribe-btn.subscribed::before {
+  content: '✓';
+  margin-right: 4px;
+  color: var(--slate);
+}
+
+/* 主操作保持印泥红 */
+.admission-btn { font-weight: 600; justify-content: center; }
+
+/* 页脚承载低频联系入口 */
+.footer-contact {
+  color: var(--slate);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+.footer-contact:hover {
+  color: var(--ink);
+  text-decoration-color: var(--hairline);
+}
+
+@media (max-width: 767px) {
+  .stagebar-auth { gap: 12px; }
+  .top-nav-link { font-size: 12px; }
+  .user-trigger { font-size: 12px; }
+  .user-trigger::before { width: 20px; height: 20px; }
+  .freshness-note { margin: 12px 4px 4px; text-align: left; }
+}
+</style>
+<style id="school-ui-v3-overrides">
+/* v3：学校名称为普通文本，外部学校详情放操作区 */
+.school-name { color: var(--ink); text-decoration: none; }
+
+/* 展开入口仅保留箭头：隐藏默认 SVG 图标，改用文字箭头，展开时旋转 90° */
+.el-table__expand-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  gap: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--slate);
+  background: transparent;
+  transform: none !important;
+}
+.el-table__expand-icon:hover {
+  color: var(--ink);
+  border-color: var(--hairline);
+  background: #FAFBFD;
+}
+.el-table__expand-icon .el-icon { display: none; }
+.el-table__expand-icon::after {
+  content: '›';
+  font-size: 18px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform .15s ease;
+}
+.el-table__expand-icon.el-table__expand-icon--expanded::after {
+  transform: translateY(-1px) rotate(90deg);
+}
+
+/* 四项操作：两个轻量外链 + 主操作 + 中性订阅 */
+.ops {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: center;
+}
+.ops > * { min-width: 0; }
+.ops .site-text-link {
+  justify-content: center;
+  padding: 5px 2px;
+  text-align: center;
+}
+.ops .admission-btn,
+.ops .subscribe-btn {
+  width: 100%;
+  min-height: 30px;
+  justify-content: center;
+}
+</style>
 </head>
 <body>
 <div id="app" v-cloak>
@@ -438,10 +623,23 @@
         {{ t.label }}<span class="cnt" v-if="!loading">{{ t.count }}</span>
       </button>
       <div class="stagebar-auth" v-if="auth.loaded">
+        <a v-if="auth.user" class="top-nav-link" href="/ui/subscriptions" title="查看已订阅的学校">我的订阅</a>
+        <div class="stagebar-contact-wrap">
+          <button type="button" class="top-nav-link top-contact-link" :aria-expanded="showContact"
+                  title="联系我们" @click="showContact = !showContact">联系我们</button>
+          <transition name="fade">
+            <div class="contact-pop" v-if="showContact">
+              <div class="contact-email" id="contact-email">ddup0530@gmail.com</div>
+              <div class="contact-actions">
+                <button type="button" class="contact-act" @click="copyEmail">{{ copied ? '已复制 ✓' : '复制邮箱' }}</button>
+                <a class="contact-act mailto" href="mailto:ddup0530@gmail.com" @click.stop>发邮件</a>
+              </div>
+            </div>
+          </transition>
+        </div>
         <template v-if="auth.user">
-          <a class="stagebar-contact" href="/ui/subscriptions">我的订阅</a>
           <div class="user-wrap">
-            <button type="button" class="stagebar-contact" :aria-expanded="showUserMenu"
+            <button type="button" class="user-trigger" :aria-expanded="showUserMenu" title="账户菜单"
                     @click="showUserMenu = !showUserMenu">{{ auth.user.username }} ▾</button>
             <transition name="fade">
               <div class="contact-pop user-pop" v-if="showUserMenu">
@@ -451,18 +649,6 @@
           </div>
         </template>
         <button v-else type="button" class="auth-btn primary" @click="SchoolAuth.openDialog('login')">登录 / 注册</button>
-      </div>
-      <div class="stagebar-contact-wrap">
-        <button type="button" class="stagebar-contact" :aria-expanded="showContact" @click="showContact = !showContact">联系我们</button>
-        <transition name="fade">
-          <div class="contact-pop" v-if="showContact">
-            <div class="contact-email" id="contact-email">ddup0530@gmail.com</div>
-            <div class="contact-actions">
-              <button type="button" class="contact-act" @click="copyEmail">{{ copied ? '已复制 ✓' : '复制邮箱' }}</button>
-              <a class="contact-act mailto" href="mailto:ddup0530@gmail.com" @click.stop>发邮件</a>
-            </div>
-          </div>
-        </transition>
       </div>
     </div>
   </nav>
@@ -498,6 +684,11 @@
         title="学校数据加载失败"
         :description="error + '，请刷新页面重试。'">
       </el-alert>
+    </div>
+
+    <!-- 插班资料更新时间：说明数据新鲜度，申请前以官网公告为准 -->
+    <div class="freshness-note" v-if="updatedAt" :title="'最近更新：' + updatedAtFull">
+      插班资料最近更新：<strong>{{ updatedAt }}</strong>　申请前请以学校官网最新公告为准
     </div>
 
     <div class="table-card" v-loading="loading" element-loading-text="正在加载学校名录…">
@@ -564,8 +755,13 @@
         <el-table-column label="操作" width="230" fixed="right">
           <template #default="scope">
             <div class="ops">
-              <a v-if="scope.row.url" class="site-btn" :href="scope.row.url" target="_blank" rel="noopener">官网 ↗</a>
-              <span v-else class="site-btn disabled">官网 ↗</span>
+              <a v-if="scope.row.url" class="site-text-link" :href="scope.row.url" target="_blank" rel="noopener"
+                 title="打开学校官网">官网 ↗</a>
+              <span v-else class="site-text-link disabled">官网 ↗</span>
+
+              <a v-if="scope.row.detail_url" class="site-text-link school-detail-action" :href="scope.row.detail_url"
+                 target="_blank" rel="noopener" title="打开学校详情（外部网站）">学校详情 ↗</a>
+              <span v-else class="site-text-link disabled">学校详情 ↗</span>
 
               <button v-if="scope.row.admission_link_count > 0"
                       class="admission-btn"
@@ -575,12 +771,9 @@
               </button>
               <span v-else class="admission-btn disabled">暂无插班入口</span>
 
-              <a v-if="scope.row.detail_url" class="site-btn" :href="scope.row.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
-              <span v-else class="site-btn disabled">学校详情 ↗</span>
-
               <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[scope.row.id] }"
-                      @click="openSubscribe(scope.row)">
-                {{ mySubs[scope.row.id] ? '已订阅 ✓' : '订阅' }}
+                      title="关注该校插班信息" @click="openSubscribe(scope.row)">
+                {{ mySubs[scope.row.id] ? '已订阅' : '订阅' }}
               </button>
             </div>
           </template>
@@ -607,8 +800,13 @@
           </div>
           <div class="addr" v-if="s.address">{{ s.address }}</div>
           <div class="ops">
-            <a v-if="s.url" class="site-btn" :href="s.url" target="_blank" rel="noopener">官网 ↗</a>
-            <span v-else class="site-btn disabled">官网 ↗</span>
+            <a v-if="s.url" class="site-text-link" :href="s.url" target="_blank" rel="noopener"
+               title="打开学校官网">官网 ↗</a>
+            <span v-else class="site-text-link disabled">官网 ↗</span>
+
+            <a v-if="s.detail_url" class="site-text-link school-detail-action" :href="s.detail_url"
+               target="_blank" rel="noopener" title="打开学校详情（外部网站）">学校详情 ↗</a>
+            <span v-else class="site-text-link disabled">学校详情 ↗</span>
 
             <button v-if="s.admission_link_count > 0"
                     class="admission-btn"
@@ -618,12 +816,9 @@
             </button>
             <span v-else class="admission-btn disabled">暂无插班入口</span>
 
-            <a v-if="s.detail_url" class="site-btn" :href="s.detail_url" target="_blank" rel="noopener">学校详情 ↗</a>
-            <span v-else class="site-btn disabled">学校详情 ↗</span>
-
             <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[s.id] }"
-                    @click="openSubscribe(s)">
-              {{ mySubs[s.id] ? '已订阅 ✓' : '订阅' }}
+                    title="关注该校插班信息" @click="openSubscribe(s)">
+              {{ mySubs[s.id] ? '已订阅' : '订阅' }}
             </button>
           </div>
         </div>
@@ -645,7 +840,7 @@
 
   <footer class="site-footer">
     <div class="container">
-      © {{ year }} 香港插班 · 学校名录<span v-if="updatedAt" :title="'最近更新：' + updatedAtFull"> · 数据更新于 {{ updatedAt }}</span>
+      © {{ year }} 香港插班 · 学校名录<span v-if="updatedAt" :title="'最近更新：' + updatedAtFull"> · 数据更新于 {{ updatedAt }}</span><span> · </span><span class="footer-contact" title="联系网站维护者" @click="openContactFromFooter">联系我们</span>
     </div>
   </footer>
 
@@ -736,6 +931,11 @@
         }
       }
       document.addEventListener('click', onDocClick);
+      // 页脚「联系我们」：回到顶部并展开刊头的联系弹层
+      function openContactFromFooter() {
+        showContact.value = true;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       async function copyEmail() {
         if (copied.value) return;
         const email = document.getElementById('contact-email')?.textContent?.trim() || '';
@@ -1026,7 +1226,7 @@
           });
           mySubs[data.school_id] = data;
           subDialog.visible = false;
-          ElementPlus.ElMessage.success('订阅成功，可在「我的订阅」查看申请入口');
+          ElementPlus.ElMessage.success('已加入关注，可在「我的订阅」查看');
         } catch (e) {
           ElementPlus.ElMessage.error(e.message);
         } finally {
@@ -1130,7 +1330,7 @@
         hasActiveFilter, clearFilters,
         currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
-        showContact, copied, copyEmail, showUserMenu,
+        showContact, copied, copyEmail, showUserMenu, openContactFromFooter,
         linksCache, linksLoading, ensureLinks, admDialog, openAdmissionDialog, retryLinks,
         reportedLinks, reportKey, reportLink,
         auth, SchoolAuth, onLogout, mySubs, subDialog, subGradeOptions,

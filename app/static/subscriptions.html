@@ -65,9 +65,42 @@
   }
   .masthead h1 .dot { color: var(--seal); }
   .masthead .sub { margin: 4px 0 0; color: var(--slate); font-size: 13px; }
-  .mast-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .nav-link { font-size: 14px; color: var(--slate); text-decoration: none; }
-  .nav-link:hover { color: var(--ink); }
+  .mast-actions { margin-left: auto; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  /* 顶部导航去按钮化：与名录页保持一致的轻量文字链接 */
+  .top-nav-link,
+  .user-trigger {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--slate);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 9px 2px;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .top-nav-link:hover,
+  .user-trigger:hover { color: var(--ink); }
+  .user-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+  }
+  .user-trigger::before {
+    content: '';
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 38%, var(--slate) 0 3px, transparent 3.5px),
+      radial-gradient(ellipse at 50% 78%, var(--slate) 0 6px, transparent 6.5px);
+    opacity: .8;
+  }
   .auth-btn {
     display: inline-flex; align-items: center;
     padding: 6px 12px;
@@ -114,6 +147,43 @@
   .user-act:hover { background: var(--el-color-primary-light-9); }
   .fade-enter-active, .fade-leave-active { transition: opacity .15s; }
   .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+  /* ---------- 联系我们弹层（与名录页一致） ---------- */
+  .contact-wrap { position: relative; align-self: center; }
+  .contact-pop {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(30, 42, 68, .14);
+    padding: 12px 14px;
+    min-width: 220px;
+    text-align: left;
+  }
+  .contact-email {
+    font-size: 14px; font-weight: 700;
+    color: var(--ink);
+    word-break: break-all;
+    user-select: all;
+  }
+  .contact-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .contact-act {
+    flex: 1;
+    display: inline-flex; justify-content: center;
+    padding: 5px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 12px; font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .contact-act:hover, .contact-act.mailto:hover { background: var(--el-color-primary-light-9); }
 
   /* ---------- 订阅卡片 ---------- */
   main.container { padding-top: 22px; padding-bottom: 40px; }
@@ -182,6 +252,18 @@
     text-align: center;
     line-height: 1.8;
   }
+  /* 页脚承载低频联系入口 */
+  .footer-contact {
+    color: var(--slate);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+  }
+  .footer-contact:hover {
+    color: var(--ink);
+    text-decoration-color: var(--hairline);
+  }
 </style>
 </head>
 <body>
@@ -194,10 +276,23 @@
         <p class="sub">已订阅学校的插班申请入口，一页直达</p>
       </div>
       <div class="mast-actions" v-if="auth.loaded">
-        <a class="nav-link" href="/ui/schools">← 返回名录</a>
+        <a class="top-nav-link" href="/ui/schools" title="返回学校名录">← 返回名录</a>
+        <div class="contact-wrap">
+          <button type="button" class="top-nav-link" :aria-expanded="showContact"
+                  title="联系我们" @click="showContact = !showContact">联系我们</button>
+          <transition name="fade">
+            <div class="contact-pop" v-if="showContact">
+              <div class="contact-email" id="contact-email">ddup0530@gmail.com</div>
+              <div class="contact-actions">
+                <button type="button" class="contact-act" @click="copyEmail">{{ copied ? '已复制 ✓' : '复制邮箱' }}</button>
+                <a class="contact-act mailto" href="mailto:ddup0530@gmail.com" @click.stop>发邮件</a>
+              </div>
+            </div>
+          </transition>
+        </div>
         <template v-if="auth.user">
           <div class="user-wrap">
-            <button type="button" class="auth-btn" :aria-expanded="showUserMenu"
+            <button type="button" class="user-trigger" :aria-expanded="showUserMenu" title="账户菜单"
                     @click="showUserMenu = !showUserMenu">{{ auth.user.username }} ▾</button>
             <transition name="fade">
               <div class="user-pop" v-if="showUserMenu">
@@ -256,7 +351,7 @@
   </main>
 
   <footer class="site-footer">
-    <div class="container">© {{ year }} 香港插班 · 学校名录</div>
+    <div class="container">© {{ year }} 香港插班 · 学校名录<span> · </span><span class="footer-contact" title="联系网站维护者" @click="openContactFromFooter">联系我们</span></div>
   </footer>
 
   <auth-modal></auth-modal>
@@ -355,11 +450,45 @@
         if (!user) loading.value = false;
       });
 
-      // 用户名菜单：点按钮展开，点页面其他位置收起
+      // 用户名菜单 / 联系我们弹层：点按钮展开，点页面其他位置收起
       const showUserMenu = ref(false);
+      const showContact = ref(false);
+      const copied = ref(false);
       document.addEventListener('click', (e) => {
         if (showUserMenu.value && !e.target.closest('.user-wrap')) showUserMenu.value = false;
+        if (showContact.value && !e.target.closest('.contact-wrap')) {
+          showContact.value = false;
+          copied.value = false;
+        }
       });
+      async function copyEmail() {
+        if (copied.value) return;
+        const email = document.getElementById('contact-email')?.textContent?.trim() || '';
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(email);
+          } else {
+            // 非 https 环境（如局域网 IP 访问）clipboard API 不可用，退回旧方案
+            const ta = document.createElement('textarea');
+            ta.value = email;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          copied.value = true;
+          setTimeout(() => { copied.value = false; }, 2000);
+        } catch (err) {
+          // 复制失败时保持弹层展开，用户可长按/划选邮箱文本手动复制
+        }
+      }
+      // 页脚「联系我们」：回到顶部并展开刊头的联系弹层
+      function openContactFromFooter() {
+        showContact.value = true;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
 
       // 登录（含会话失效后重新登录）→ 加载订阅；退出/会话失效 → 清空页面数据
       watch(() => auth.user, (u, prev) => {
@@ -371,7 +500,8 @@
       });
 
       return {
-        auth, SchoolAuth, subs, links, loading, year, showUserMenu,
+        auth, SchoolAuth, subs, links, loading, year, showUserMenu, showContact, copied,
+        copyEmail, openContactFromFooter,
         gradeZh, gradeLabel, fmtDate, goDirectory, onLogout, cancelGrade, cancelSchool
       };
     }
