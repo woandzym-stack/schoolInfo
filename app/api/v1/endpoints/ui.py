@@ -8,23 +8,6 @@ from app.services.pv_stats import incr_pv
 ui_router = APIRouter(tags=["UI"])
 
 
-@ui_router.get("/prompt-studio", summary="Prompt 可视化工作台", include_in_schema=False)
-async def serve_prompt_studio():
-    """
-    返回静态的前端 HTML 页面。
-    注意：include_in_schema=False 可以让这个接口不在 Swagger UI (docs) 里显示，
-    保持纯净的 API 文档。
-    """
-    await incr_pv("prompt-studio")
-    base_dir = Path(__file__).resolve().parent.parent.parent.parent
-    html_path = base_dir / "static" / "index.html"
-
-    if not html_path.exists():
-        raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/index.html")
-
-    return FileResponse(html_path)
-
-
 @ui_router.get("/schools", summary="香港插班学校名录", include_in_schema=False)
 async def serve_schools_directory():
     """香港插班 · 学校名录展示页面"""
@@ -47,5 +30,20 @@ async def serve_subscriptions():
 
     if not html_path.exists():
         raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/subscriptions.html")
+
+    return FileResponse(html_path)
+
+
+@ui_router.get("/stats", summary="页面访问统计", include_in_schema=False)
+async def serve_stats():
+    """PV 统计仪表盘（数据接口 /api/v1/stats/visits 需登录，未登录由前端提示）。
+
+    本页自身不打点，避免管理员自查污染统计。
+    """
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent
+    html_path = base_dir / "static" / "stats.html"
+
+    if not html_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/stats.html")
 
     return FileResponse(html_path)

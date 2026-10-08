@@ -18,7 +18,7 @@ from app.core.task_store import redis_async
 DAILY_TTL_SECONDS = 40 * 24 * 3600
 
 # 参与统计的页面标识（与 ui.py 打点处保持一致）
-TRACKED_PAGES = ("schools", "subscriptions", "prompt-studio")
+TRACKED_PAGES = ("schools", "subscriptions")
 
 
 async def incr_pv(page: str) -> None:

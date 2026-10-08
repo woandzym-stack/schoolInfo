@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页面访问统计</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page-plane:      #f9f9f7;
+    --surface-1:       #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --gridline:        #e1e0d9;
+    --baseline:        #c3c2b7;
+    --border:          rgba(11,11,11,0.10);
+    --series-1:        #2a78d6;
+    --tooltip-bg:      #0b0b0b;
+    --tooltip-ink:     #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page-plane:      #0d0d0d;
+      --surface-1:       #1a1a19;
+      --text-primary:    #ffffff;
+      --text-secondary:  #c3c2b7;
+      --text-muted:      #898781;
+      --gridline:        #2c2c2a;
+      --baseline:        #383835;
+      --border:          rgba(255,255,255,0.10);
+      --series-1:        #3987e5;
+      --tooltip-bg:      #ffffff;
+      --tooltip-ink:     #0b0b0b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  header.top { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  header.top h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  header.top .sub { color: var(--text-secondary); font-size: 13px; }
+
+  /* 过滤行：一行，位于所有图表上方 */
+  .filters { display: flex; gap: 8px; margin: 16px 0 20px; }
+  .filters button {
+    font: inherit; font-size: 13px; padding: 6px 14px; cursor: pointer;
+    color: var(--text-secondary); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 999px;
+  }
+  .filters button[aria-pressed="true"] {
+    color: var(--text-primary); font-weight: 600;
+    border-color: var(--series-1);
+  }
+
+  /* KPI 行 */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .tile .label { font-size: 13px; color: var(--text-secondary); }
+  .tile .value { font-size: 32px; font-weight: 600; margin-top: 4px; }
+  .tile .delta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* 图表卡片 */
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; }
+  .card h2 .total { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+
+  .plot-scroll { overflow-x: auto; }
+  .plot {
+    position: relative; display: flex; align-items: flex-end;
+    height: 180px; /* 柱子区 148px + x 轴标签带 32px */
+    border-bottom: 1px solid var(--baseline);
+    padding-bottom: 32px;
+  }
+  .gridline {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: var(--gridline); pointer-events: none;
+  }
+  .gridline .tick {
+    position: absolute; left: 0; top: -15px;
+    font-size: 11px; color: var(--text-muted); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .slot {
+    flex: 1 0 24px; min-width: 24px; align-self: stretch;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    align-items: center; cursor: default; position: relative;
+    padding-bottom: 32px; margin-bottom: -32px; /* hit 区域覆盖整列 */
+  }
+  .slot .bar {
+    width: min(24px, 100% - 2px); /* 相邻柱之间留 2px 表面间隙 */
+    background: var(--series-1);
+    border-radius: 4px 4px 0 0; /* 数据端圆角，基线端直角 */
+    min-height: 0;
+  }
+  .slot:hover .bar, .slot:focus-visible .bar { filter: brightness(1.15); }
+  .slot:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+  .slot .x {
+    position: absolute; bottom: 6px; font-size: 11px; color: var(--text-muted);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+
+  #tooltip {
+    position: fixed; z-index: 10; pointer-events: none;
+    background: var(--tooltip-bg); color: var(--tooltip-ink);
+    font-size: 12px; padding: 6px 10px; border-radius: 8px;
+    display: none; white-space: nowrap;
+  }
+  #tooltip .v { font-weight: 700; }
+  #tooltip .d { opacity: 0.75; margin-left: 6px; }
+
+  .table-view { margin-top: 12px; font-size: 13px; }
+  .table-view summary { cursor: pointer; color: var(--text-secondary); }
+  .table-view table { border-collapse: collapse; margin-top: 8px; width: 100%; }
+  .table-view td, .table-view th {
+    text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  .table-view th { color: var(--text-secondary); font-weight: 500; }
+  .table-view td:first-child, .table-view th:first-child { text-align: left; }
+
+  .notice { color: var(--text-secondary); font-size: 14px; padding: 40px 0; text-align: center; }
+  .notice a { color: var(--series-1); }
+  .loading #content { opacity: 0.5; transition: opacity 0.15s; } /* 刷新时保留旧渲染 */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>页面访问统计</h1>
+    <span class="sub">PV 按打开次数计，未去重</span>
+  </header>
+
+  <div class="filters" role="group" aria-label="时间范围">
+    <button data-days="7"  aria-pressed="true">近 7 天</button>
+    <button data-days="14" aria-pressed="false">近 14 天</button>
+    <button data-days="30" aria-pressed="false">近 30 天</button>
+  </div>
+
+  <div id="content">
+    <section class="kpi-row" id="kpis"></section>
+    <section id="charts"></section>
+  </div>
+</div>
+<div id="tooltip" role="status"></div>
+
+<script>
+const PAGE_NAMES = {
+  "schools": "名录页 /ui/schools",
+  "subscriptions": "订阅页 /ui/subscriptions",
+};
+
+const tooltip = document.getElementById("tooltip");
+let currentDays = 7;
+
+function fmt(n) { return n.toLocaleString("en-US"); }
+
+async function load(days) {
+  document.body.classList.add("loading");
+  try {
+    const resp = await fetch(`/api/v1/stats/visits?days=${days}`, { credentials: "same-origin" });
+    if (resp.status === 401) {
+      renderNotice('请先 <a href="/ui/schools">登录</a> 后再查看统计数据。');
+      return;
+    }
+    const body = await resp.json();
+    if (body.errCode !== 200 && body.errCode !== 0) {
+      renderNotice("查询失败：" + (body.errMsg || resp.status));
+      return;
+    }
+    render(body.data);
+  } catch (e) {
+    renderNotice("请求出错：" + e.message);
+  } finally {
+    document.body.classList.remove("loading");
+  }
+}
+
+function renderNotice(html) {
+  document.getElementById("kpis").innerHTML = "";
+  const charts = document.getElementById("charts");
+  charts.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "notice";
+  div.innerHTML = html; // 仅本页内置文案，非外部数据
+  charts.appendChild(div);
+}
+
+function render(data) {
+  renderKpis(data);
+  const charts = document.getElementById("charts");
+  charts.innerHTML = "";
+  for (const [page, info] of Object.entries(data)) {
+    charts.appendChild(renderCard(page, info));
+  }
+}
+
+function renderKpis(data) {
+  const kpis = document.getElementById("kpis");
+  kpis.innerHTML = "";
+  for (const [page, info] of Object.entries(data)) {
+    const dates = Object.keys(info.daily);
+    const todayPv = info.daily[dates[dates.length - 1]] ?? 0;
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    const label = document.createElement("div");
+    label.className = "label";
+    label.textContent = PAGE_NAMES[page] || page;
+    const value = document.createElement("div");
+    value.className = "value";
+    value.textContent = fmt(info.total);
+    const delta = document.createElement("div");
+    delta.className = "delta";
+    delta.textContent = `今日 ${fmt(todayPv)} 次`;
+    tile.append(label, value, delta);
+    kpis.appendChild(tile);
+  }
+}
+
+function renderCard(page, info) {
+  const card = document.createElement("article");
+  card.className = "card";
+
+  const h2 = document.createElement("h2");
+  const name = document.createElement("span");
+  name.textContent = PAGE_NAMES[page] || page;
+  const total = document.createElement("span");
+  total.className = "total";
+  total.textContent = `累计 ${fmt(info.total)}`;
+  h2.append(name, total);
+  card.appendChild(h2);
+
+  const entries = Object.entries(info.daily); // [date, pv]，日期升序
+  const max = Math.max(1, ...entries.map(([, v]) => v));
+
+  const scroll = document.createElement("div");
+  scroll.className = "plot-scroll";
+  const plot = document.createElement("div");
+  plot.className = "plot";
+  plot.setAttribute("role", "img");
+  plot.setAttribute("aria-label", `${name.textContent} 最近 ${entries.length} 天每日访问量柱状图`);
+
+  // 网格线：max 与 max/2 两条发丝线
+  for (const frac of [1, 0.5]) {
+    const g = document.createElement("div");
+    g.className = "gridline";
+    g.style.bottom = (32 + 128 * frac) + "px";
+    const tick = document.createElement("span");
+    tick.className = "tick";
+    tick.textContent = fmt(Math.round(max * frac));
+    g.appendChild(tick);
+    plot.appendChild(g);
+  }
+
+  // 稀疏 x 标签：约 7 个
+  const labelEvery = Math.max(1, Math.ceil(entries.length / 7));
+
+  entries.forEach(([d, v], i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.tabIndex = 0;
+    slot.setAttribute("aria-label", `${d}：${v} 次`);
+
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.height = (v / max * 128) + "px";
+    slot.appendChild(bar);
+
+    if (i % labelEvery === 0 || i === entries.length - 1) {
+      const x = document.createElement("span");
+      x.className = "x";
+      x.textContent = d.slice(5); // MM-DD
+      slot.appendChild(x);
+    }
+
+    const show = () => {
+      tooltip.style.display = "block";
+      tooltip.innerHTML = "";
+      const vv = document.createElement("span");
+      vv.className = "v";
+      vv.textContent = `${fmt(v)} 次`;
+      const dd = document.createElement("span");
+      dd.className = "d";
+      dd.textContent = d;
+      tooltip.append(vv, dd);
+      const r = slot.getBoundingClientRect();
+      const tw = tooltip.offsetWidth;
+      tooltip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8) + "px";
+      tooltip.style.top = (r.top - tooltip.offsetHeight - 6) + "px";
+    };
+    const hide = () => { tooltip.style.display = "none"; };
+    slot.addEventListener("pointerenter", show);
+    slot.addEventListener("pointerleave", hide);
+    slot.addEventListener("focus", show);
+    slot.addEventListener("blur", hide);
+
+    plot.appendChild(slot);
+  });
+
+  scroll.appendChild(plot);
+  card.appendChild(scroll);
+
+  // 数据表视图（tooltip 之外的可达等价物）
+  const details = document.createElement("details");
+  details.className = "table-view";
+  const summary = document.createElement("summary");
+  summary.textContent = "数据表";
+  const table = document.createElement("table");
+  const head = document.createElement("tr");
+  for (const t of ["日期", "PV"]) {
+    const th = document.createElement("th");
+    th.textContent = t;
+    head.appendChild(th);
+  }
+  table.appendChild(head);
+  for (const [d, v] of [...entries].reverse()) {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td");
+    td1.textContent = d;
+    const td2 = document.createElement("td");
+    td2.textContent = fmt(v);
+    tr.append(td1, td2);
+    table.appendChild(tr);
+  }
+  details.append(summary, table);
+  card.appendChild(details);
+
+  return card;
+}
+
+document.querySelectorAll(".filters button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filters button").forEach(b => b.setAttribute("aria-pressed", "false"));
+    btn.setAttribute("aria-pressed", "true");
+    currentDays = Number(btn.dataset.days);
+    load(currentDays);
+  });
+});
+
+load(currentDays);
+</script>
+</body>
+</html>
