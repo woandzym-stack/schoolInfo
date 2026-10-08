@@ -477,20 +477,20 @@
 .site-text-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .site-text-link.disabled { color: #B4BCC9; pointer-events: none; }
 
-/* “插班提醒”是次级操作，不再使用红底 */
+/* “订阅”是次级操作：浅印泥红底 + 红字红边，强度低于实心红的「插班申请」 */
 .subscribe-btn,
 .subscribe-btn.subscribed {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 6px 10px;
-  border: 1px solid var(--hairline);
+  border: 1px solid rgba(179, 57, 46, .45);
   border-radius: 4px;
-  background: #fff;
-  color: var(--ink);
+  background: rgba(179, 57, 46, .06);
+  color: var(--seal);
   box-shadow: none;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
@@ -498,13 +498,19 @@
 }
 .subscribe-btn:hover,
 .subscribe-btn.subscribed:hover {
-  background: var(--el-color-primary-light-9);
-  border-color: #AAB2C6;
+  background: rgba(179, 57, 46, .12);
+  border-color: rgba(179, 57, 46, .65);
+}
+.subscribe-btn.subscribed {
+  background: #fff;
+  border-color: var(--hairline);
+  color: var(--slate);
+  font-weight: 500;
 }
 .subscribe-btn.subscribed::before {
   content: '✓';
   margin-right: 4px;
-  color: var(--slate);
+  color: var(--seal);
 }
 
 /* 主操作保持印泥红 */
@@ -854,7 +860,7 @@
 
   <!-- 订阅年级选择弹窗：按学校学段出 P1-P6 / S1-S6 选项，外加「全部年级」 -->
   <el-dialog v-model="subDialog.visible" class="sub-dialog" :title="'订阅 · ' + (subDialog.school ? subDialog.school.name : '')"
-             width="420px" align-center append-to-body>
+             width="min(92vw, 400px)" align-center append-to-body>
     <div v-if="subDialog.school">
       <el-checkbox v-model="subDialog.all" @change="onSubAllChange">全部年级</el-checkbox>
       <el-checkbox-group v-model="subDialog.grades" :disabled="subDialog.all" style="margin-top:10px;">
