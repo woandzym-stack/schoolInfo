@@ -3,7 +3,10 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from app.services.pv_stats import incr_pv
+
 ui_router = APIRouter(tags=["UI"])
+
 
 @ui_router.get("/prompt-studio", summary="Prompt 可视化工作台", include_in_schema=False)
 async def serve_prompt_studio():
@@ -12,6 +15,7 @@ async def serve_prompt_studio():
     注意：include_in_schema=False 可以让这个接口不在 Swagger UI (docs) 里显示，
     保持纯净的 API 文档。
     """
+    await incr_pv("prompt-studio")
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
     html_path = base_dir / "static" / "index.html"
 
@@ -24,6 +28,7 @@ async def serve_prompt_studio():
 @ui_router.get("/schools", summary="香港插班学校名录", include_in_schema=False)
 async def serve_schools_directory():
     """香港插班 · 学校名录展示页面"""
+    await incr_pv("schools")
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
     html_path = base_dir / "static" / "schools.html"
 
@@ -36,6 +41,7 @@ async def serve_schools_directory():
 @ui_router.get("/subscriptions", summary="我的订阅", include_in_schema=False)
 async def serve_subscriptions():
     """我的订阅页面（登录态由前端探测 /auth/me 判定）"""
+    await incr_pv("subscriptions")
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
     html_path = base_dir / "static" / "subscriptions.html"
 
