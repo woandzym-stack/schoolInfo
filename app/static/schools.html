@@ -410,6 +410,10 @@
     padding: 1px 7px; background: #FAFBFD;
   }
   .mobile-card .addr { font-size: 12px; color: var(--slate); margin: 6px 0 10px; line-height: 1.6; }
+  /* 邮箱无空格，窄屏下允许断行防溢出 */
+  .mobile-card .email-addr { word-break: break-all; }
+  /* 电话：深色+下划线，明示可点击拨号 */
+  .mobile-card .phone-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 </style>
 <style id="accepted-ui-refinements">
 /* ===== 按确认意见做的界面优化 ===== */
@@ -818,9 +822,13 @@
             <span v-if="s.type" class="mini-tag">{{ s.type }}</span>
             <span v-if="s.gender" class="mini-tag">{{ s.gender }}</span>
             <span v-if="s.language" class="mini-tag">{{ s.language }}</span>
-            <span v-if="s.phone" class="mini-tag">{{ s.phone }}</span>
+            <span v-if="s.religion" class="mini-tag">{{ s.religion }}</span>
           </div>
           <div class="addr" v-if="s.address">{{ s.address }}</div>
+          <div class="addr email-addr" v-if="s.email">电邮：{{ s.email }}</div>
+          <div class="addr phone-line" v-if="s.phone">
+            <a class="phone-link" :href="'tel:' + String(s.phone).replace(/\s/g, '')">📞 {{ s.phone }}</a>
+          </div>
           <div class="ops">
             <a v-if="s.url" class="site-text-link" :href="s.url" target="_blank" rel="noopener"
                title="打开学校官网">官网 ↗</a>
