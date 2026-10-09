@@ -1,12 +1,13 @@
 from datetime import datetime
-from sqlalchemy import Column
-from sqlalchemy import DateTime, Integer, String
-from sqlmodel import SQLModel, Field
 from typing import Optional
+
+from sqlalchemy import Column, DateTime, Integer, String
+from sqlmodel import Field, SQLModel
 
 
 class Schools(SQLModel, table=True):
     """香港学校信息表"""
+
     __tablename__ = "schools"
 
     id: int = Field(sa_column=Column("id", Integer, primary_key=True, autoincrement=True))
@@ -40,6 +41,16 @@ class Schools(SQLModel, table=True):
     phone: Optional[str] = Field(default=None, sa_column=Column("phone", String(50)))
     # 电邮
     email: Optional[str] = Field(default=None, sa_column=Column("email", String(255)))
+    # 大考網站链接（bigexam.hk 学校页，一般仅中学有）
+    bigexam_url: Optional[str] = Field(default=None, sa_column=Column("bigexam_url", String(500)))
+    # 全港排名下限（bigexam hkRank 区间）
+    hk_rank_low: Optional[int] = Field(default=None, sa_column=Column("hk_rank_low", Integer))
+    # 全港排名上限（bigexam hkRank 区间）
+    hk_rank_high: Optional[int] = Field(default=None, sa_column=Column("hk_rank_high", Integer))
+    # 全港参与排名学校总数
+    hk_rank_ttl: Optional[int] = Field(default=None, sa_column=Column("hk_rank_ttl", Integer))
+    # 全港排名抓取时间
+    rank_updated_at: Optional[datetime] = Field(default=None, sa_column=Column("rank_updated_at", DateTime))
     # 申请链接
     admission_link: Optional[str] = Field(default=None, sa_column=Column("admission_link", String(500)))
     created_at: datetime = Field(sa_column=Column("created_at", DateTime, nullable=False))

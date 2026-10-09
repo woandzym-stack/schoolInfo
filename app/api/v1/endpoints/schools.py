@@ -88,6 +88,7 @@ async def _load_directory() -> List[Dict[str, Any]]:
         Schools.address,
         Schools.phone,
         Schools.email,
+        Schools.bigexam_url,
     ).order_by(Schools.id)
     links_stmt = select(AdmissionLinks.school_id)
 
@@ -122,6 +123,7 @@ async def _load_directory() -> List[Dict[str, Any]]:
             address,
             phone,
             email,
+            bigexam_url,
         ) = row
         data.append(
             {
@@ -141,6 +143,7 @@ async def _load_directory() -> List[Dict[str, Any]]:
                 "address": address,
                 "phone": phone,
                 "email": email,
+                "bigexam_url": bigexam_url,
                 "admission_link_count": link_counts.get(s_id, 0),
             }
         )

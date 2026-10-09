@@ -242,6 +242,15 @@
     .table-card { animation: none; }
   }
   .school-name { font-weight: 700; font-size: 15px; }
+  /* 大考排名外链：跟在校名后的轻量文字链接，仅该校有 bigexam_url 时渲染 */
+  .rank-link {
+    margin-left: 8px;
+    color: var(--slate);
+    font-size: 12px; font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .rank-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
   .district-cell { color: var(--ink); }
   .muted { color: var(--slate); }
 
@@ -723,6 +732,8 @@
         <el-table-column prop="name" label="学校名称" min-width="210" sortable="custom">
           <template #default="scope">
             <span class="school-name">{{ scope.row.name }}</span>
+            <a v-if="scope.row.bigexam_url" class="rank-link" :href="scope.row.bigexam_url"
+               target="_blank" rel="noopener" title="打开大考网站，查看全港排名">排名 ↗</a>
           </template>
         </el-table-column>
         <el-table-column prop="district" label="地区" width="110" sortable="custom">
@@ -797,6 +808,8 @@
         <div v-for="s in pagedList" :key="s.id" class="mobile-card">
           <div class="top">
             <span class="school-name">{{ s.name }}</span>
+            <a v-if="s.bigexam_url" class="rank-link" :href="s.bigexam_url"
+               target="_blank" rel="noopener" title="打开大考网站，查看全港排名">排名 ↗</a>
             <span v-if="s.stage === 'secondary' && s.banding" class="band-badge" :class="bandClass(s.banding)">{{ s.banding }}</span>
             <span v-else-if="s.stage === 'primary'" class="mini-tag">{{ netLabel(s.school_net) }}</span>
           </div>
