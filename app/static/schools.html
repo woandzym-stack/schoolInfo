@@ -356,6 +356,7 @@
   }
   .detail-item { font-size: 13px; line-height: 1.7; }
   .detail-item .k { color: var(--slate); margin-right: 8px; }
+  .detail-item .contact-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
   /* ---------- 分页 ---------- */
   .pager { display: flex; justify-content: flex-end; padding: 8px 12px 0; }
@@ -412,8 +413,8 @@
   .mobile-card .addr { font-size: 12px; color: var(--slate); margin: 6px 0 10px; line-height: 1.6; }
   /* 邮箱无空格，窄屏下允许断行防溢出 */
   .mobile-card .email-addr { word-break: break-all; }
-  /* 电话：深色+下划线，明示可点击拨号 */
-  .mobile-card .phone-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  /* 电话/邮箱：深色+下划线，明示可点击（tel: 拨号 / mailto: 发邮件） */
+  .mobile-card .contact-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 </style>
 <style id="accepted-ui-refinements">
 /* ===== 按确认意见做的界面优化 ===== */
@@ -726,7 +727,7 @@
           <template #default="scope">
             <div class="detail-grid">
               <div class="detail-item"><span class="k">地址</span>{{ scope.row.address || '—' }}</div>
-              <div class="detail-item"><span class="k">电邮</span>{{ scope.row.email || '—' }}</div>
+              <div class="detail-item"><span class="k">电邮</span><a v-if="scope.row.email" class="contact-link" :href="'mailto:' + scope.row.email">{{ scope.row.email }}</a><template v-else>—</template></div>
               <div class="detail-item"><span class="k">宗教</span>{{ scope.row.religion || '—' }}</div>
               <div class="detail-item"><span class="k">学校类型</span>{{ scope.row.type || '—' }}</div>
               <div class="detail-item" v-if="scope.row.stage === 'primary'"><span class="k">校网</span>{{ netLabel(scope.row.school_net) }}</div>
@@ -825,9 +826,9 @@
             <span v-if="s.religion" class="mini-tag">{{ s.religion }}</span>
           </div>
           <div class="addr" v-if="s.address">{{ s.address }}</div>
-          <div class="addr email-addr" v-if="s.email">电邮：{{ s.email }}</div>
+          <div class="addr email-addr" v-if="s.email">电邮：<a class="contact-link" :href="'mailto:' + s.email">{{ s.email }}</a></div>
           <div class="addr phone-line" v-if="s.phone">
-            <a class="phone-link" :href="'tel:' + String(s.phone).replace(/\s/g, '')">📞 {{ s.phone }}</a>
+            <a class="contact-link" :href="'tel:' + String(s.phone).replace(/\s/g, '')">📞 {{ s.phone }}</a>
           </div>
           <div class="ops">
             <a v-if="s.url" class="site-text-link" :href="s.url" target="_blank" rel="noopener"
