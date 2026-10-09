@@ -389,7 +389,9 @@
     .stats { margin-left: 0; width: 100%; justify-content: flex-start; gap: 24px; }
     .stat { text-align: left; }
     .stat .num { font-size: 20px; }
-    .stagebar-inner { gap: 0; }
+    .stagebar-inner { gap: 0; flex-wrap: wrap; }
+    /* 登录后右侧操作（订阅/联系/账户）独占一行右对齐，不再与学段页签挤同一行 */
+    .stagebar-auth { flex-basis: 100%; justify-content: flex-end; padding: 0 0 8px; }
     .stage-tab { flex: 1; text-align: center; font-size: 16px; }
     .stagebar-contact { font-size: 13px; }
     .filter-select { width: calc(50% - 5px); }
@@ -548,6 +550,8 @@
   .top-nav-link { font-size: 12px; }
   .user-trigger { font-size: 12px; }
   .user-trigger::before { width: 20px; height: 20px; }
+  /* 用户名过长时省略，防止把「我的订阅/联系我们」挤出屏幕 */
+  .user-trigger { max-width: 45vw; overflow: hidden; text-overflow: ellipsis; }
   .freshness-note { margin: 12px 4px 4px; text-align: left; }
 }
 </style>
