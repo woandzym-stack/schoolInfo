@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logger import setup_logging
 from app.core.middleware import LogMiddleware
+from app.services.pv_stats import incr_pv
 
 jinja_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
 
@@ -77,5 +78,9 @@ app.include_router(ui_router, prefix="/ui", tags=["UI"])
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """首页直达学校名录页：用户访问 https://school.ddup.app/ 无需再输入 /ui/schools"""
+    """首页直达学校名录页：用户访问 https://school.ddup.app/ 无需再输入 /ui/schools
+
+    与 /ui/schools 是同一页面，PV 计入同一个 "schools" 桶。
+    """
+    await incr_pv("schools")
     return FileResponse(Path(__file__).parent / "static" / "schools.html")
