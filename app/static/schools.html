@@ -397,9 +397,10 @@
     .stats { margin-left: 0; width: 100%; justify-content: flex-start; gap: 24px; }
     .stat { text-align: left; }
     .stat .num { font-size: 20px; }
-    .stagebar-inner { gap: 0; flex-wrap: wrap; }
-    /* 登录后右侧操作（订阅/联系/账户）独占一行右对齐，不再与学段页签挤同一行 */
-    .stagebar-auth { flex-basis: 100%; justify-content: flex-end; padding: 0 0 8px; }
+    .stagebar-inner { gap: 0; }
+    /* 登录后移动端隐藏「联系我们」按钮，页签与账户操作保持单行不折行；
+       弹层容器保留在 DOM 中，页脚「联系我们」仍可正常触发弹层 */
+    .stagebar-inner.logged-in .stagebar-contact-wrap > .top-contact-link { display: none; }
     .stage-tab { flex: 1; text-align: center; font-size: 16px; }
     .stagebar-contact { font-size: 13px; }
     .filter-select { width: calc(50% - 5px); }
@@ -645,7 +646,7 @@
 
   <!-- 学段页签：顶层维度，独立于筛选栏 -->
   <nav class="stagebar">
-    <div class="container stagebar-inner">
+    <div class="container stagebar-inner" :class="{ 'logged-in': auth.user }">
       <button
         v-for="t in [{key: 'secondary', label: '中学', count: secondaryCount}, {key: 'primary', label: '小学', count: primaryCount}]"
         :key="t.key"
@@ -838,9 +839,10 @@
             <span v-if="s.religion" class="mini-tag">{{ s.religion }}</span>
           </div>
           <div class="addr" v-if="s.address">{{ s.address }}</div>
-          <div class="addr email-addr" v-if="s.email">电邮：<a class="contact-link" :href="'mailto:' + s.email">{{ s.email }}</a></div>
-          <div class="addr phone-line" v-if="s.phone">
-            <a class="contact-link" :href="'tel:' + String(s.phone).replace(/\s/g, '')">📞 {{ s.phone }}</a>
+          <div class="addr email-addr" v-if="s.email || s.phone">
+            <template v-if="s.email">电邮：<a class="contact-link" :href="'mailto:' + s.email">{{ s.email }}</a></template>
+            <span v-if="s.email && s.phone"> · </span>
+            <a v-if="s.phone" class="contact-link" :href="'tel:' + String(s.phone).replace(/\s/g, '')">📞 {{ s.phone }}</a>
           </div>
           <div class="ops">
             <a v-if="s.url" class="site-text-link" :href="s.url" target="_blank" rel="noopener"
