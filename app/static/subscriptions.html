@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>我的订阅 · 香港插班</title>
+<title>我的收藏 · 香港插班</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.css">
 <link href="/static/fonts/fonts.css" rel="stylesheet">
@@ -273,8 +273,8 @@
     <div class="container masthead-inner">
       <div class="seal">插</div>
       <div>
-        <h1>我的订阅</h1>
-        <p class="sub">已订阅学校的插班申请入口，一页直达</p>
+        <h1>我的收藏</h1>
+        <p class="sub">已收藏学校的插班申请入口，一页直达</p>
       </div>
       <div class="mast-actions" v-if="auth.loaded">
         <a class="top-nav-link" href="/" title="返回学校名录">← 返回名录</a>
@@ -308,18 +308,18 @@
     </div>
   </header>
 
-  <main class="container" v-loading="loading" element-loading-text="正在加载订阅…">
+  <main class="container" v-loading="loading" element-loading-text="正在加载收藏…">
     <!-- 未登录 -->
     <div class="empty-box" v-if="auth.loaded && !auth.user">
-      <div class="title">登录后查看你的订阅</div>
-      <p>订阅学校后，这里会集中展示它们的插班申请入口</p>
+      <div class="title">登录后查看你的收藏</div>
+      <p>收藏学校后，这里会集中展示它们的插班申请入口</p>
       <el-button type="primary" size="large" @click="SchoolAuth.openDialog('login')">登录 / 注册</el-button>
     </div>
 
     <!-- 已登录但无订阅 -->
     <div class="empty-box" v-else-if="auth.loaded && auth.user && !loading && subs.length === 0">
-      <div class="title">还没有订阅任何学校</div>
-      <p>去学校名录，点击学校行内的「订阅」按钮即可</p>
+      <div class="title">还没有收藏任何学校</div>
+      <p>去学校名录，点击学校行内的「收藏」按钮即可</p>
       <el-button type="primary" size="large" @click="goDirectory">去学校名录</el-button>
     </div>
 
@@ -329,11 +329,11 @@
         <span class="sub-name">{{ s.name }}</span>
         <span class="mini-tag">{{ s.stage === 'primary' ? '小学' : '中学' }}</span>
         <span class="mini-tag" v-if="s.district">{{ s.district }}</span>
-        <span class="sub-time">订阅于 {{ fmtDate(s.subscribed_at) }}</span>
-        <button type="button" class="sub-cancel" @click="cancelSchool(s)">取消订阅</button>
+        <span class="sub-time">收藏于 {{ fmtDate(s.subscribed_at) }}</span>
+        <button type="button" class="sub-cancel" @click="cancelSchool(s)">取消收藏</button>
       </div>
       <div class="sub-grades">
-        <span class="k">关注年级</span>
+        <span class="k">收藏年级</span>
         <el-tag v-for="g in s.grades" :key="g" closable :disable-transitions="true"
                 @close="cancelGrade(s, g)">{{ gradeZh(g) }}</el-tag>
       </div>
@@ -346,7 +346,7 @@
             <span class="grades" v-if="link.grades && link.grades !== 'all'">（{{ gradeLabel(link.grades) }}）</span>
           </a>
         </template>
-        <span v-else class="no-links">该校暂无插班入口，订阅后如有更新可在此查看</span>
+        <span v-else class="no-links">该校暂无插班入口，如有更新会在这里展示</span>
       </div>
     </div>
   </main>
@@ -401,7 +401,7 @@
           for (const key of Object.keys(links)) delete links[key];
           Object.assign(links, linkMap || {});
         } catch (e) {
-          if (e.status !== 401) ElementPlus.ElMessage.error(e.message || '订阅加载失败');
+          if (e.status !== 401) ElementPlus.ElMessage.error(e.message || '收藏加载失败');
         } finally {
           loading.value = false;
         }
@@ -429,7 +429,7 @@
 
       async function cancelSchool(s) {
         try {
-          await ElementPlus.ElMessageBox.confirm('确定取消对「' + s.name + '」的全部订阅吗？', '取消订阅', {
+          await ElementPlus.ElMessageBox.confirm('确定取消对「' + s.name + '」的全部收藏吗？', '取消收藏', {
             confirmButtonText: '确定取消',
             cancelButtonText: '再想想',
             type: 'warning'
@@ -439,7 +439,7 @@
           await SchoolAuth.api('/api/v1/subscriptions/' + s.school_id, { method: 'DELETE' });
           subs.value = subs.value.filter(x => x.school_id !== s.school_id);
           delete links[s.school_id];
-          ElementPlus.ElMessage.success('已取消对 ' + s.name + ' 的订阅');
+          ElementPlus.ElMessage.success('已取消对 ' + s.name + ' 的收藏');
         } catch (e) {
           ElementPlus.ElMessage.error(e.message);
         }

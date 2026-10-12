@@ -658,7 +658,7 @@
         {{ t.label }}<span class="cnt" v-if="!loading">{{ t.count }}</span>
       </button>
       <div class="stagebar-auth" v-if="auth.loaded">
-        <a v-if="auth.user" class="top-nav-link" href="/ui/subscriptions" title="查看已订阅的学校">我的订阅</a>
+        <a v-if="auth.user" class="top-nav-link" href="/ui/subscriptions" title="查看已收藏的学校">我的收藏</a>
         <div class="stagebar-contact-wrap">
           <button type="button" class="top-nav-link top-contact-link" :aria-expanded="showContact"
                   title="联系我们" @click="showContact = !showContact">联系我们</button>
@@ -810,8 +810,8 @@
               <span v-else class="admission-btn disabled">暂无插班入口</span>
 
               <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[scope.row.id] }"
-                      title="关注该校插班信息" @click="openSubscribe(scope.row)">
-                {{ mySubs[scope.row.id] ? '已订阅' : '订阅' }}
+                      title="收藏该校，随时查看插班入口" @click="openSubscribe(scope.row)">
+                {{ mySubs[scope.row.id] ? '已收藏' : '收藏' }}
               </button>
             </div>
           </template>
@@ -862,8 +862,8 @@
             <span v-else class="admission-btn disabled">暂无插班入口</span>
 
             <button class="subscribe-btn" type="button" :class="{ subscribed: !!mySubs[s.id] }"
-                    title="关注该校插班信息" @click="openSubscribe(s)">
-              {{ mySubs[s.id] ? '已订阅' : '订阅' }}
+                    title="收藏该校，随时查看插班入口" @click="openSubscribe(s)">
+              {{ mySubs[s.id] ? '已收藏' : '收藏' }}
             </button>
           </div>
         </div>
@@ -895,7 +895,7 @@
   <change-password-modal></change-password-modal>
 
   <!-- 订阅年级选择弹窗：按学校学段出 P1-P6 / S1-S6 选项，外加「全部年级」 -->
-  <el-dialog v-model="subDialog.visible" class="sub-dialog" :title="'订阅 · ' + (subDialog.school ? subDialog.school.name : '')"
+  <el-dialog v-model="subDialog.visible" class="sub-dialog" :title="'收藏 · ' + (subDialog.school ? subDialog.school.name : '')"
              width="min(92vw, 400px)" align-center append-to-body>
     <div v-if="subDialog.school">
       <el-checkbox v-model="subDialog.all" @change="onSubAllChange">全部年级</el-checkbox>
@@ -903,7 +903,7 @@
         <el-checkbox v-for="g in subGradeOptions" :key="g.value" :value="g.value">{{ g.label }}</el-checkbox>
       </el-checkbox-group>
       <el-button type="primary" style="width:100%;margin-top:18px;" :loading="subDialog.submitting"
-                 @click="submitSubscribe">确认订阅</el-button>
+                 @click="submitSubscribe">确认收藏</el-button>
     </div>
   </el-dialog>
 
@@ -1273,7 +1273,7 @@
           });
           mySubs[data.school_id] = data;
           subDialog.visible = false;
-          ElementPlus.ElMessage.success('已加入关注，可在「我的订阅」查看');
+          ElementPlus.ElMessage.success('已收藏，可在「我的收藏」查看');
         } catch (e) {
           ElementPlus.ElMessage.error(e.message);
         } finally {
