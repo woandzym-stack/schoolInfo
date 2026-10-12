@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title>页面访问统计</title>
 <style>
   :root {
@@ -159,7 +160,7 @@
 
 <script>
 const PAGE_NAMES = {
-  "schools": "名录页 /ui/schools",
+  "schools": "名录页 /",
   "subscriptions": "订阅页 /ui/subscriptions",
 };
 
@@ -173,7 +174,7 @@ async function load(days) {
   try {
     const resp = await fetch(`/api/v1/stats/visits?days=${days}`, { credentials: "same-origin" });
     if (resp.status === 401) {
-      renderNotice('请先 <a href="/ui/schools">登录</a> 后再查看统计数据。');
+      renderNotice('请先 <a href="/">登录</a> 后再查看统计数据。');
       return;
     }
     const body = await resp.json();

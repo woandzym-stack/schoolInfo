@@ -1,24 +1,23 @@
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.services.pv_stats import incr_pv
 
 ui_router = APIRouter(tags=["UI"])
 
 
-@ui_router.get("/schools", summary="香港插班学校名录", include_in_schema=False)
-async def serve_schools_directory():
-    """香港插班 · 学校名录展示页面"""
-    await incr_pv("schools")
-    base_dir = Path(__file__).resolve().parent.parent.parent.parent
-    html_path = base_dir / "static" / "schools.html"
+@ui_router.get("/schools", include_in_schema=False)
+async def redirect_schools_directory(request: Request):
+    """名录的规范地址是 /，本路径 301 跳转并保留 query（UTM / 筛选参数不丢失）。
 
-    if not html_path.exists():
-        raise HTTPException(status_code=404, detail="Frontend UI not found. Please check app/static/schools.html")
-
-    return FileResponse(html_path)
+    跳转本身不计 PV，由目标地址 / 统计。
+    """
+    target = "/"
+    if request.url.query:
+        target = f"/?{request.url.query}"
+    return RedirectResponse(url=target, status_code=301)
 
 
 @ui_router.get("/subscriptions", summary="我的订阅", include_in_schema=False)

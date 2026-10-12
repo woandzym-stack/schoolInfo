@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
 <title>我的订阅 · 香港插班</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.css">
@@ -276,7 +277,7 @@
         <p class="sub">已订阅学校的插班申请入口，一页直达</p>
       </div>
       <div class="mast-actions" v-if="auth.loaded">
-        <a class="top-nav-link" href="/ui/schools" title="返回学校名录">← 返回名录</a>
+        <a class="top-nav-link" href="/" title="返回学校名录">← 返回名录</a>
         <div class="contact-wrap">
           <button type="button" class="top-nav-link" :aria-expanded="showContact"
                   title="联系我们" @click="showContact = !showContact">联系我们</button>
@@ -406,7 +407,7 @@
         }
       }
 
-      function goDirectory() { window.location.href = '/ui/schools'; }
+      function goDirectory() { window.location.href = '/'; }
 
       function onLogout() {
         SchoolAuth.logout();  // 清态由下面的 watch 统一处理

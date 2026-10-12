@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     # --- 基础配置 ---
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "my-new-app"
+    # 站点规范根地址（无尾斜杠），用于 sitemap / robots 等 SEO 输出
+    SITE_BASE_URL: str = "https://school.ddup.app"
     
     # --- 1. 数据库配置 (必须在 .env 中提供) ---
     DB_HOST: str

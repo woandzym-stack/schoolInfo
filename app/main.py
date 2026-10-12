@@ -3,12 +3,13 @@ from pathlib import Path
 
 import httpx
 import jinja2
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
+from app.api.v1.endpoints.seo import seo_router
 from app.api.v1.endpoints.ui import ui_router
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -67,10 +68,22 @@ app.add_middleware(LogMiddleware)
 # ✅ 注册全局异常处理 (建议放在中间件之后，路由之前)
 register_exception_handlers(app)
 
+# SEO：规范地址为 /，/static/schools.html 是同一份名录的重复入口，301 到 /。
+# 必须在 StaticFiles 挂载之前注册，否则 /static/* 会被挂载直接接管，重定向不生效。
+@app.get("/static/schools.html", include_in_schema=False)
+async def redirect_static_schools(request: Request):
+    target = "/"
+    if request.url.query:
+        target = f"/?{request.url.query}"
+    return RedirectResponse(url=target, status_code=301)
+
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # 注册路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+app.include_router(seo_router)
 
 
 app.include_router(ui_router, prefix="/ui", tags=["UI"])
@@ -78,9 +91,9 @@ app.include_router(ui_router, prefix="/ui", tags=["UI"])
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """首页直达学校名录页：用户访问 https://school.ddup.app/ 无需再输入 /ui/schools
+    """首页直达学校名录页：/ 是名录的唯一规范地址（/ui/schools、/static/schools.html 均 301 到此）
 
-    与 /ui/schools 是同一页面，PV 计入同一个 "schools" 桶。
+    PV 计入 "schools" 桶。
     """
     await incr_pv("schools")
     return FileResponse(Path(__file__).parent / "static" / "schools.html")
