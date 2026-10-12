@@ -21,9 +21,9 @@ async def redirect_schools_directory(request: Request):
 
 
 @ui_router.get("/subscriptions", summary="我的订阅", include_in_schema=False)
-async def serve_subscriptions():
+async def serve_subscriptions(request: Request):
     """我的订阅页面（登录态由前端探测 /auth/me 判定）"""
-    await incr_pv("subscriptions")
+    await incr_pv("subscriptions", request)
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
     html_path = base_dir / "static" / "subscriptions.html"
 

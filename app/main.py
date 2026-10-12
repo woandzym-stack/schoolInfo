@@ -90,10 +90,10 @@ app.include_router(ui_router, prefix="/ui", tags=["UI"])
 
 
 @app.get("/", include_in_schema=False)
-async def root():
+async def root(request: Request):
     """首页直达学校名录页：/ 是名录的唯一规范地址（/ui/schools、/static/schools.html 均 301 到此）
 
     PV 计入 "schools" 桶。
     """
-    await incr_pv("schools")
+    await incr_pv("schools", request)
     return FileResponse(Path(__file__).parent / "static" / "schools.html")
