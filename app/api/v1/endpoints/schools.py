@@ -19,6 +19,7 @@ from app.models.schools import Schools
 from app.schemas.link_report import LinkReportIn
 from app.schemas.response import SingleResponse
 from app.services.db import weekly_run_log_service
+from app.services.pv_stats import incr_event
 
 router = APIRouter()
 
@@ -296,6 +297,7 @@ async def last_updated(db: Annotated[AsyncSession, Depends(get_async_db)]) -> Si
 
 @router.get("/search", response_model=SingleResponse, summary="按名称搜索学校（简繁双列匹配）")
 async def search_schools(
+    request: Request,
     name: str = Query(..., min_length=1, description="学校名称关键字，简体/繁体均可"),
 ) -> SingleResponse:
     """
@@ -304,11 +306,13 @@ async def search_schools(
     - 简体输入命中 simple_name、繁体输入命中 name；简繁混合的关键字可能两列都不命中
     - 匹配在进程内缓存的名录数据上进行，不触碰数据库
     - 返回结构与 /schools 单条记录一致（只含 admission_link_count），便于前端复用同一渲染逻辑
+    - 每次有效搜索计一次核心事件（前端已做 300ms 防抖，计数≈搜索行为次数）
     """
     kw = name.strip().lower()
     if not kw:
         return SingleResponse(data=[])
 
+    await incr_event("search", request)
     data = await _get_directory()
     matched = [s for s in data if kw in (s["name"] or "").lower() or kw in (s["simple_name"] or "").lower()]
     return SingleResponse(data=matched)
@@ -326,8 +330,10 @@ async def get_admission_links(
     - 链接是核心数据资产，不随名录批量下发；爬全量必须逐校请求，配合 IP 限流抬高成本
     - 按客户端 IP 固定窗口限流（分钟/天双窗口），超限返回 429
     - 学校无链接时返回空数组
+    - 限流通过后计一次核心事件（被 429 挡掉的爬取不计）
     """
     await _check_adm_link_rate(get_client_ip(request))
+    await incr_event("adm_link", request)
 
     stmt = (
         select(AdmissionLinks.url, AdmissionLinks.link_text, AdmissionLinks.grades)

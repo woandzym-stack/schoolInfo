@@ -133,6 +133,18 @@
   .table-view th { color: var(--text-secondary); font-weight: 500; }
   .table-view td:first-child, .table-view th:first-child { text-align: left; }
 
+  /* 来源分布 */
+  .src { margin-top: 12px; border-top: 1px solid var(--gridline); padding-top: 12px; }
+  .src h3 { font-size: 13px; margin: 0 0 8px; color: var(--text-secondary); font-weight: 500; }
+  .src .row {
+    display: grid; grid-template-columns: minmax(90px, 140px) 1fr auto;
+    gap: 8px; align-items: center; font-size: 12px; padding: 2px 0;
+  }
+  .src .name { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .bar { height: 8px; border-radius: 4px; background: var(--series-1); opacity: 0.75; min-width: 2px; }
+  .src .num { font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+  .src .empty { font-size: 12px; color: var(--text-muted); }
+
   .notice { color: var(--text-secondary); font-size: 14px; padding: 40px 0; text-align: center; }
   .notice a { color: var(--series-1); }
   .loading #content { opacity: 0.5; transition: opacity 0.15s; } /* 刷新时保留旧渲染 */
@@ -142,7 +154,7 @@
 <div class="wrap">
   <header class="top">
     <h1>页面访问统计</h1>
-    <span class="sub">PV 按打开次数计，未去重</span>
+    <span class="sub">PV/事件已过滤爬虫与扫描流量，按次数计未去重；注册/订阅为数据库实数</span>
   </header>
 
   <div class="filters" role="group" aria-label="时间范围">
@@ -162,6 +174,17 @@
 const PAGE_NAMES = {
   "schools": "名录页 /",
   "subscriptions": "订阅页 /ui/subscriptions",
+};
+const EVENT_NAMES = {
+  "search": "搜索学校",
+  "adm_link": "查看插班链接",
+};
+const CONV_NAMES = {
+  "users": "注册用户",
+  "subscriptions": "订阅数",
+};
+const SOURCE_NAMES = {
+  "direct": "直接访问",
 };
 
 const tooltip = document.getElementById("tooltip");
@@ -204,40 +227,93 @@ function render(data) {
   renderKpis(data);
   const charts = document.getElementById("charts");
   charts.innerHTML = "";
-  for (const [page, info] of Object.entries(data)) {
-    charts.appendChild(renderCard(page, info));
+  for (const [page, info] of Object.entries(data.pages || {})) {
+    charts.appendChild(renderCard(PAGE_NAMES[page] || page, info, info.sources));
   }
+  for (const [ev, info] of Object.entries(data.events || {})) {
+    charts.appendChild(renderCard(EVENT_NAMES[ev] || ev, info, null));
+  }
+}
+
+function makeTile(label, total, deltaText) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  const labelEl = document.createElement("div");
+  labelEl.className = "label";
+  labelEl.textContent = label;
+  const value = document.createElement("div");
+  value.className = "value";
+  value.textContent = fmt(total);
+  const delta = document.createElement("div");
+  delta.className = "delta";
+  delta.textContent = deltaText;
+  tile.append(labelEl, value, delta);
+  return tile;
+}
+
+function todayOf(info) {
+  const dates = Object.keys(info.daily);
+  return info.daily[dates[dates.length - 1]] ?? 0;
 }
 
 function renderKpis(data) {
   const kpis = document.getElementById("kpis");
   kpis.innerHTML = "";
-  for (const [page, info] of Object.entries(data)) {
-    const dates = Object.keys(info.daily);
-    const todayPv = info.daily[dates[dates.length - 1]] ?? 0;
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    const label = document.createElement("div");
-    label.className = "label";
-    label.textContent = PAGE_NAMES[page] || page;
-    const value = document.createElement("div");
-    value.className = "value";
-    value.textContent = fmt(info.total);
-    const delta = document.createElement("div");
-    delta.className = "delta";
-    delta.textContent = `今日 ${fmt(todayPv)} 次`;
-    tile.append(label, value, delta);
-    kpis.appendChild(tile);
+  for (const [page, info] of Object.entries(data.pages || {})) {
+    kpis.appendChild(makeTile(PAGE_NAMES[page] || page, info.total, `今日 ${fmt(todayOf(info))} 次`));
+  }
+  for (const [ev, info] of Object.entries(data.events || {})) {
+    kpis.appendChild(makeTile(EVENT_NAMES[ev] || ev, info.total, `今日 ${fmt(todayOf(info))} 次`));
+  }
+  for (const [key, info] of Object.entries(data.conversions || {})) {
+    kpis.appendChild(makeTile(CONV_NAMES[key] || key, info.total, `今日新增 ${fmt(info.today)}`));
   }
 }
 
-function renderCard(page, info) {
+function renderSources(sources) {
+  const wrap = document.createElement("div");
+  wrap.className = "src";
+  const h = document.createElement("h3");
+  h.textContent = "来源分布（所选时间范围）";
+  wrap.appendChild(h);
+
+  const entries = Object.entries(sources || {}).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "暂无来源数据（自统计口径上线后开始累计）";
+    wrap.appendChild(empty);
+    return wrap;
+  }
+
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  const max = entries[0][1];
+  for (const [name, v] of entries.slice(0, 10)) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const nameEl = document.createElement("span");
+    nameEl.className = "name";
+    nameEl.textContent = SOURCE_NAMES[name] || name;
+    nameEl.title = name;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.width = (v / max * 100) + "%";
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = `${fmt(v)} (${(v / total * 100).toFixed(1)}%)`;
+    row.append(nameEl, bar, num);
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+function renderCard(title, info, sources) {
   const card = document.createElement("article");
   card.className = "card";
 
   const h2 = document.createElement("h2");
   const name = document.createElement("span");
-  name.textContent = PAGE_NAMES[page] || page;
+  name.textContent = title;
   const total = document.createElement("span");
   total.className = "total";
   total.textContent = `累计 ${fmt(info.total)}`;
@@ -321,7 +397,7 @@ function renderCard(page, info) {
   summary.textContent = "数据表";
   const table = document.createElement("table");
   const head = document.createElement("tr");
-  for (const t of ["日期", "PV"]) {
+  for (const t of ["日期", "次数"]) {
     const th = document.createElement("th");
     th.textContent = t;
     head.appendChild(th);
@@ -338,6 +414,11 @@ function renderCard(page, info) {
   }
   details.append(summary, table);
   card.appendChild(details);
+
+  // 页面卡片附带来源分布；事件卡片没有来源数据
+  if (sources) {
+    card.appendChild(renderSources(sources));
+  }
 
   return card;
 }
