@@ -10,6 +10,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from loguru import logger
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -85,6 +86,10 @@ async def register(db: AsyncSession, username: str, password: str, email: str, i
     if exists is not None:
         raise HTTPException(status_code=400, detail="用户名已被注册")
 
+    email_exists = (await db.exec(select(Users.id).where(Users.email == email))).first()
+    if email_exists is not None:
+        raise HTTPException(status_code=400, detail="该邮箱已被注册")
+
     now = datetime.now()
     user = Users(
         username=username,
@@ -98,7 +103,12 @@ async def register(db: AsyncSession, username: str, password: str, email: str, i
     await db.flush()  # 拿到自增 id
     # 显式提交：依赖 teardown 的 commit 发生在响应发送之后（已验证），
     # 只有这里 commit 成功，端点才会返回成功响应并种 Cookie
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # 并发下两个相同 username/email 可能同时通过前置检查，由 DB 唯一索引兜底
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="用户名或邮箱已被注册") from None
     return user, create_token(user)
 
 
