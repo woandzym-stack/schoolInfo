@@ -707,7 +707,7 @@
         :placeholder="f.label"
         clearable
         filterable>
-        <el-option v-for="opt in filterOptions[f.key]" :key="opt" :label="f.key === 'school_net' ? netOptionLabel(opt) : opt" :value="opt"></el-option>
+        <el-option v-for="opt in filterOptions[f.key]" :key="opt" :label="optionLabel(f.key, opt)" :value="opt"></el-option>
       </el-select>
       <el-button v-if="hasActiveFilter" class="clear-btn" text @click="clearFilters">清空筛选</el-button>
     </div>
@@ -1044,7 +1044,18 @@
           arr.sort(f.key === 'school_net'
             ? (a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0)
             : (a, b) => a.localeCompare(b, 'zh'));
-          opts[f.key] = arr;
+          if (f.key === 'banding') {
+            // 组别在每档细分（1A/1B/1C…）前插入整档选项 '1'/'2'/'3'，选中即按前缀匹配整档
+            const seen = new Set();
+            opts[f.key] = arr.flatMap(v => {
+              const tier = v[0];
+              if (seen.has(tier)) return [v];
+              seen.add(tier);
+              return v.length > 1 ? [tier, v] : [v];
+            });
+          } else {
+            opts[f.key] = arr;
+          }
         }
         return opts;
       });
@@ -1065,7 +1076,9 @@
               && !(s.simple_name || '').toLowerCase().includes(kw)) return false;
           for (const f of filterDefs.value) {
             const v = filters[f.key];
-            if (v && s[f.key] !== v) return false;
+            if (!v) continue;
+            // 组别支持整档选项（'1' 命中 1A/1B/1C），用前缀匹配；其余维度精确匹配
+            if (f.key === 'banding' ? !(s.banding || '').startsWith(v) : s[f.key] !== v) return false;
           }
           return true;
         });
@@ -1126,6 +1139,12 @@
       }
       function netOptionLabel(net) {
         return net + ' 校网';
+      }
+      // 筛选项展示文案：校网加后缀；组别的整档选项（'1'/'2'/'3'）标注「全部」，细分档（1A…）原样展示
+      function optionLabel(key, opt) {
+        if (key === 'school_net') return netOptionLabel(opt);
+        if (key === 'banding' && opt.length === 1) return 'Band ' + opt + '（全部）';
+        return opt;
       }
 
       // grades 原始值为 P1-P6 / S1-S6 逗号分隔（P=小学, S=中学），转译为「小一、中一」等
@@ -1376,7 +1395,7 @@
         schools, loading, error, keyword, stage, filters, filterDefs, filterOptions,
         sortedList, pagedList, linkCount, secondaryCount, primaryCount,
         hasActiveFilter, clearFilters,
-        currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel,
+        currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel, optionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,
         showContact, copied, copyEmail, showUserMenu, openContactFromFooter,
         linksCache, linksLoading, ensureLinks, admDialog, openAdmissionDialog, retryLinks,
