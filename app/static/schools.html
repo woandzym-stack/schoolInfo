@@ -1072,6 +1072,7 @@
       });
 
       // 排序作用于筛选后的全集，而非当前页；校网按数值排序
+      // 未点排序时保持后端默认序：全港排名升序，无排名学校垫底
       const sortedList = computed(() => {
         const list = filteredList.value.slice();
         const { prop, order } = sortState;

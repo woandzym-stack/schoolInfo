@@ -71,26 +71,32 @@ async def _load_directory() -> List[Dict[str, Any]]:
     - 只读查询不开事务、不 commit（省去每次一轮的 COMMIT 往返）
     - 链接表只查 school_id 聚合计数：链接本体是防爬资产，由
       /{school_id}/admission-links 按需、限流返回
+    - 默认顺序 = hk_rank_low 升序，无排名（NULL）的学校垫底、按 id 稳定排序；
+      前端不主动排序时即按此顺序展示，搜索接口同序
     """
-    schools_stmt = select(
-        Schools.id,
-        Schools.name,
-        Schools.simple_name,
-        Schools.url,
-        Schools.detail_url,
-        Schools.type,
-        Schools.district,
-        Schools.stage,
-        Schools.banding,
-        Schools.school_net,
-        Schools.language,
-        Schools.gender,
-        Schools.religion,
-        Schools.address,
-        Schools.phone,
-        Schools.email,
-        Schools.bigexam_url,
-    ).order_by(Schools.id)
+    schools_stmt = (
+        select(
+            Schools.id,
+            Schools.name,
+            Schools.simple_name,
+            Schools.url,
+            Schools.detail_url,
+            Schools.type,
+            Schools.district,
+            Schools.stage,
+            Schools.banding,
+            Schools.school_net,
+            Schools.language,
+            Schools.gender,
+            Schools.religion,
+            Schools.address,
+            Schools.phone,
+            Schools.email,
+            Schools.bigexam_url,
+        )
+        # hk_rank_low IS NULL 在 MySQL ASC 下排最后（0/1 值），否则 NULL 会排到最前
+        .order_by(Schools.hk_rank_low.is_(None), Schools.hk_rank_low, Schools.id)
+    )
     links_stmt = select(AdmissionLinks.school_id)
 
     async with AsyncSessionLocal() as school_session, AsyncSessionLocal() as link_session:
