@@ -1015,9 +1015,12 @@
           { key: 'gender', label: '性别' }
         ];
         if (stage.value === 'secondary') {
-          return [...common,
-            { key: 'language', label: '教学语言' },
+          return [
+            { key: 'district', label: '地区' },
             { key: 'banding', label: '组别' },
+            { key: 'type', label: '学校类型' },
+            { key: 'gender', label: '性别' },
+            { key: 'language', label: '教学语言' },
             { key: 'religion', label: '宗教' }
           ];
         }
