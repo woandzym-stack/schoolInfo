@@ -26,22 +26,30 @@ router = APIRouter()
 # ---------- 名录缓存（L1 进程内 + L2 Redis） ----------
 # 学校名录是准静态数据（由导入脚本线下更新），而远端库性能较弱
 # （两次全表查询 ~0.9s，3800 行 ORM 物化再花数百 ms），因此做两级缓存：
-#   L1 进程内（1h）：命中时 ~1ms，不碰 Redis；多 worker 间最多 1h 数据偏差
+#   L1 进程内（1h）：命中时 ~1ms；多 worker 间靠版本号保持一致（见下）
 #   L2 Redis（1d）：跨 gunicorn worker 共享，任意时刻全场至多一次 DB 重建
 # 重建由 SET NX 分布式锁保护，未抢到锁的进程等待他进程写回 L2 后直接读；
 # Redis 不可用时 fail-open 回退为进程内缓存 + 直查库（功能不受影响）。
-# 一致性策略：TTL 兜底 + 导入数据后用 ?refresh=1 主动刷新（TTL 已放宽到 1h/1d，
-# 依赖主动刷新保证及时性，导入脚本完成后务必调一次）。
+# 一致性策略：TTL 兜底 + 导入数据后用 ?refresh=1 主动刷新。
+# 多 worker 一致性：gunicorn 多进程下，refresh 只重建了命中 worker 的 L1，
+# 其余 worker 的 L1 仍是旧数据且优先级高于 L2，单靠 TTL 最长偏差 1h。
+# 因此引入版本号：重建时 INCR Redis 中的 _L2_VERSION_KEY 并随 L1 记录；
+# 各 worker 每隔 _L1_VERSION_CHECK_INTERVAL 秒核对一次版本（亚毫秒 GET，节流），
+# 版本不一致即作废 L1 改读 L2，保证一次 refresh 后全场在数秒内收敛到新数据。
 _L1_TTL_SECONDS = 60 * 60
 _L2_TTL_SECONDS = 24 * 60 * 60
 _L2_KEY = "school:directory:body"
+_L2_VERSION_KEY = "school:directory:version"
 _L2_LOCK_KEY = "school:directory:rebuild-lock"
 _L2_LOCK_TTL_SECONDS = 30  # 重建实测 ~5-7s，留足余量；持锁进程崩溃时锁自动过期
 _L2_WAIT_SECONDS = 15  # 未抢到锁时等待他进程重建的最长时长，超时自行重建兜底
+_L1_VERSION_CHECK_INTERVAL = 5.0  # L1 版本号核对节流间隔（秒），refresh 后全场最长 5s 收敛
 _cache_lock = asyncio.Lock()
 _cache_body: Optional[bytes] = None
 _cache_data: Optional[List[Dict[str, Any]]] = None
 _cache_expires_at: float = 0.0
+_cache_version: Optional[int] = None  # 当前 L1 对应的名录版本号（None 表示未知，如 Redis 故障期间构建）
+_version_checked_at: float = 0.0  # 上次向 Redis 核对版本号的 monotonic 时间（节流用）
 
 # ---------- 插班链接接口限流（防爬） ----------
 # 申请链接是核心数据资产：名录接口只返回链接数量，链接本体按学校逐个获取。
@@ -165,18 +173,19 @@ def _serialize(data: List[Dict[str, Any]]) -> str:
     )
 
 
-def _set_l1(data: List[Dict[str, Any]], body_str: str) -> List[Dict[str, Any]]:
+def _set_l1(data: List[Dict[str, Any]], body_str: str, version: Optional[int]) -> List[Dict[str, Any]]:
     """写入进程内 L1 缓存（body 按字节保存，响应时零拷贝直出），返回 data。"""
-    global _cache_body, _cache_data, _cache_expires_at
+    global _cache_body, _cache_data, _cache_expires_at, _cache_version
     _cache_data = data
     _cache_body = body_str.encode("utf-8")
     _cache_expires_at = time.monotonic() + _L1_TTL_SECONDS
+    _cache_version = version
     return data
 
 
-def _set_l1_from_body(body_str: str) -> List[Dict[str, Any]]:
+def _set_l1_from_body(body_str: str, version: Optional[int]) -> List[Dict[str, Any]]:
     """用 L2 读到的响应体回填 L1（data 从信封中解析，供搜索过滤用）。"""
-    return _set_l1(json.loads(body_str)["data"], body_str)
+    return _set_l1(json.loads(body_str)["data"], body_str, version)
 
 
 async def _read_l2() -> Optional[str]:
@@ -189,24 +198,55 @@ async def _read_l2() -> Optional[str]:
         return None
 
 
+async def _read_version() -> Optional[int]:
+    """读名录版本号；key 不存在、值非法或 Redis 故障均返回 None。"""
+    try:
+        value = await redis_async.get(_L2_VERSION_KEY)
+        return int(value) if value is not None else None
+    except Exception as e:
+        logger.warning(f"名录版本号读取失败，按未知处理: {e}")
+        return None
+
+
+async def _l1_fresh() -> bool:
+    """
+    L1 是否可直接使用：在 TTL 内且版本未被其他 worker 的 refresh 推进。
+
+    版本核对按 _L1_VERSION_CHECK_INTERVAL 节流，避免每个请求都访问 Redis；
+    Redis 故障或版本号缺失时按新鲜处理（fail-open，退化为纯 TTL 行为）。
+    """
+    global _version_checked_at
+    if _cache_data is None or time.monotonic() >= _cache_expires_at:
+        return False
+    now = time.monotonic()
+    if now - _version_checked_at < _L1_VERSION_CHECK_INTERVAL:
+        return True
+    _version_checked_at = now
+    version = await _read_version()
+    return version is None or version == _cache_version
+
+
 async def _rebuild_and_publish() -> List[Dict[str, Any]]:
-    """从数据库重建名录，写回 L2（供所有 worker 共享）并返回名录数据。"""
+    """从数据库重建名录，写回 L2 并推进版本号（供所有 worker 共享）后返回名录数据。"""
     t0 = time.perf_counter()
     data = await _load_directory()
     body_str = _serialize(data)
 
+    version: Optional[int] = None
     try:
+        # 先写 body 再 INCR 版本：其他 worker 看到新版本时 L2 必然已是新数据
         await redis_async.set(_L2_KEY, body_str, ex=_L2_TTL_SECONDS)
+        version = int(await redis_async.incr(_L2_VERSION_KEY))
     except Exception as e:
-        logger.warning(f"名录缓存 L2 写入失败，仅本进程 L1 生效: {e}")
+        logger.warning(f"名录缓存 L2 写入/版本推进失败，仅本进程 L1 生效: {e}")
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
     link_total = sum(s["admission_link_count"] for s in data)
     logger.info(
         f"学校名录缓存已重建 | 学校数={len(data)} | 插班链接数={link_total} "
-        f"| 耗时={elapsed_ms:.0f}ms | 响应体={len(body_str.encode('utf-8')) / 1024:.0f}KB"
+        f"| 版本={version} | 耗时={elapsed_ms:.0f}ms | 响应体={len(body_str.encode('utf-8')) / 1024:.0f}KB"
     )
-    _set_l1(data, body_str)
+    _set_l1(data, body_str, version)
     return data
 
 
@@ -215,23 +255,26 @@ async def _get_directory(refresh: bool = False) -> List[Dict[str, Any]]:
     获取全量名录（L1 命中直接返回内存中的 list）。
 
     - 与 list_schools 共用同一份缓存与重建逻辑，避免两处代码漂移
-    - L1 miss → 查 L2 Redis；L2 也 miss → 抢分布式锁重建，未抢到则等待他进程写回
+    - L1 命中（TTL 内且版本一致）直接返回；L1 miss → 查 L2 Redis；
+      L2 也 miss → 抢分布式锁重建，未抢到则等待他进程写回
     - Redis 故障时降级为进程内缓存 + 直查库（仅 _cache_lock 保护）
     """
-    if not refresh and _cache_data is not None and time.monotonic() < _cache_expires_at:
+    if not refresh and await _l1_fresh():
+        assert _cache_data is not None  # _l1_fresh 已保证
         return _cache_data
 
     # 防止缓存过期瞬间的并发请求同时打穿到数据库（thundering herd，进程内）
     async with _cache_lock:
         # 二次检查：等锁期间可能已有请求完成了刷新
-        if not refresh and _cache_data is not None and time.monotonic() < _cache_expires_at:
+        if not refresh and await _l1_fresh():
+            assert _cache_data is not None
             return _cache_data
 
         # L2 命中：回填 L1 后直接返回，不触碰数据库
         if not refresh:
             body_str = await _read_l2()
             if body_str is not None:
-                return _set_l1_from_body(body_str)
+                return _set_l1_from_body(body_str, await _read_version())
 
         # L2 未命中（或主动刷新）：抢分布式锁，保证跨进程只有一方重建
         lock_token = f"{os.getpid()}:{time.monotonic()}"
@@ -259,7 +302,7 @@ async def _get_directory(refresh: bool = False) -> List[Dict[str, Any]]:
             await asyncio.sleep(0.3)
             body_str = await _read_l2()
             if body_str is not None:
-                return _set_l1_from_body(body_str)
+                return _set_l1_from_body(body_str, await _read_version())
 
         # 等待超时（持锁进程可能崩溃）：自行重建兜底
         logger.warning("等待他进程重建名录缓存超时，本进程自行重建兜底")
@@ -274,11 +317,11 @@ async def list_schools(refresh: bool = False) -> Response:
     - 数据量约千所，由前端一次性加载后按学段筛选/分页
     - stage: secondary=中学 / primary=小学；school_net 仅小学有值（'0' 表示不参与派位校网的直资/私立）
     - 插班链接本体不在此返回（防爬）：前端点击后调 /{school_id}/admission-links 按需获取
-    - 响应体两级缓存：进程内 L1 1h + Redis L2 1d（跨 worker 共享）；
-      导入新数据后请求 ?refresh=1 可立即重建两级缓存
+    - 响应体两级缓存：进程内 L1 1h + Redis L2 1d（跨 worker 共享，版本号保证多 worker 一致）；
+      导入新数据后请求 ?refresh=1 可立即重建两级缓存，其余 worker 数秒内自动跟进
     - 直接返回序列化好的 Response（绕开 response_model 逐对象校验），结构与 SingleResponse 一致
     """
-    if not refresh and _cache_body is not None and time.monotonic() < _cache_expires_at:
+    if not refresh and _cache_body is not None and await _l1_fresh():
         return Response(content=_cache_body, media_type="application/json")
 
     await _get_directory(refresh=refresh)
