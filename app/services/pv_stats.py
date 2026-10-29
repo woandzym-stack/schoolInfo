@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 from fastapi import Request
 from loguru import logger
 
+from app.core.config import settings
 from app.core.task_store import redis_async
 
 # 日维度 key 保留天数
@@ -66,12 +67,17 @@ def _is_bot_request(request: Request) -> bool:
 def should_count(request: Request) -> bool:
     """判断该请求是否为真实浏览器导航，是否计入 PV。
 
-    三层快速判定（任一不满足即排除）：
-    1. 必须是 GET——GET 路由会被 Starlette 自动响应 HEAD 探测，扫描器常用 HEAD 探活
-    2. UA 存在且不含爬虫/扫描器特征
-    3. 若带 Sec-Fetch-Dest 则必须是 document——真实浏览器导航必带且为 document，
-       扫描器/脚本一般不带此头（不带不拦，交给前两层兜底）
+    四层快速判定（任一不满足即排除）：
+    1. Host 必须是 SITE_BASE_URL 的正式域名，排除直接扫描服务器 IP 的流量
+    2. 必须是 GET——GET 路由会被 Starlette 自动响应 HEAD 探测，扫描器常用 HEAD 探活
+    3. UA 存在且不含爬虫/扫描器特征
+    4. 若带 Sec-Fetch-Dest 则必须是 document——真实浏览器导航必带且为 document，
+       扫描器/脚本一般不带此头（不带不拦，交给前三层兜底）
     """
+    canonical_host = (urlparse(settings.SITE_BASE_URL).hostname or "").lower()
+    request_host = request.headers.get("host", "").split(":")[0].lower()
+    if not canonical_host or request_host != canonical_host:
+        return False
     if request.method != "GET":
         return False
     if _is_bot_request(request):

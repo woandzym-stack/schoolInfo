@@ -9,8 +9,10 @@ from starlette.requests import Request
 
 from app.services.pv_stats import resolve_source, should_count
 
-CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-HOST = "schoolinfo.test"
+CHROME_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+)
+HOST = "school.ddup.app"
 
 
 def make_request(method: str = "GET", headers: dict[str, str] | None = None, query_string: str = "") -> Request:
@@ -21,16 +23,48 @@ def make_request(method: str = "GET", headers: dict[str, str] | None = None, que
 
 count_cases = [
     # (描述, request, 期望)
-    ("真实浏览器导航（带 Sec-Fetch）", make_request(headers={"user-agent": CHROME_UA, "sec-fetch-dest": "document", "sec-fetch-mode": "navigate"}), True),
+    (
+        "真实浏览器导航（带 Sec-Fetch）",
+        make_request(headers={"user-agent": CHROME_UA, "sec-fetch-dest": "document", "sec-fetch-mode": "navigate"}),
+        True,
+    ),
     ("真实浏览器（老浏览器不带 Sec-Fetch）", make_request(headers={"user-agent": CHROME_UA}), True),
+    (
+        "直接扫描服务器 IP（Host 非正式域名）",
+        make_request(headers={"host": "47.242.217.80", "user-agent": CHROME_UA, "referer": "https://47.242.217.80/"}),
+        False,
+    ),
+    ("其他域名 Host", make_request(headers={"host": "example.com", "user-agent": CHROME_UA}), False),
+    ("正式域名带端口", make_request(headers={"host": f"{HOST}:443", "user-agent": CHROME_UA}), True),
     ("curl 默认 UA", make_request(headers={"user-agent": "curl/8.5.0"}), False),
     ("python 脚本", make_request(headers={"user-agent": "python-requests/2.31.0"}), False),
-    ("Googlebot", make_request(headers={"user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}), False),
+    (
+        "Googlebot",
+        make_request(
+            headers={"user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"}
+        ),
+        False,
+    ),
     ("sqlmap 扫描", make_request(headers={"user-agent": "sqlmap/1.7.2"}), False),
     ("空 UA", make_request(), False),
     ("HEAD 探测（正常浏览器 UA）", make_request(method="HEAD", headers={"user-agent": CHROME_UA}), False),
-    ("Sec-Fetch-Dest 非 document（如脚本发起的 fetch）", make_request(headers={"user-agent": CHROME_UA, "sec-fetch-dest": "empty"}), False),
-    ("无头 Chrome", make_request(headers={"user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.0.0 Safari/537.36"}), False),
+    (
+        "Sec-Fetch-Dest 非 document（如脚本发起的 fetch）",
+        make_request(headers={"user-agent": CHROME_UA, "sec-fetch-dest": "empty"}),
+        False,
+    ),
+    (
+        "无头 Chrome",
+        make_request(
+            headers={
+                "user-agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "HeadlessChrome/120.0.0.0 Safari/537.36"
+                )
+            }
+        ),
+        False,
+    ),
 ]
 
 source_cases = [
@@ -42,8 +76,16 @@ source_cases = [
     ("Bing 搜索 Referer", make_request(headers={"referer": "https://cn.bing.com/search?q=xxx"}), "bing"),
     ("百度 Referer", make_request(headers={"referer": "https://www.baidu.com/s?wd=xxx"}), "baidu"),
     ("站内跳转（Referer 即本站）", make_request(headers={"referer": f"https://{HOST}/ui/subscriptions"}), "direct"),
-    ("一般外链按域名记录", make_request(headers={"referer": "https://www.discuss.com.hk/viewthread.php?tid=1"}), "discuss.com.hk"),
-    ("utm 为空字符串回退 Referer", make_request(headers={"referer": "https://www.google.com/"}, query_string="utm_source="), "google"),
+    (
+        "一般外链按域名记录",
+        make_request(headers={"referer": "https://www.discuss.com.hk/viewthread.php?tid=1"}),
+        "discuss.com.hk",
+    ),
+    (
+        "utm 为空字符串回退 Referer",
+        make_request(headers={"referer": "https://www.google.com/"}, query_string="utm_source="),
+        "google",
+    ),
 ]
 
 failed = 0
