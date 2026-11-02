@@ -7,7 +7,7 @@
 - key: ev:{event}:total             事件累计次数，不过期
 - key: ev:{event}:{YYYY-MM-DD}      事件当日次数，TTL 40 天
 
-PV 计数前先做非浏览器流量过滤（UA 黑名单 + Sec-Fetch 导航头校验），
+PV 计数前先做非浏览器流量过滤（Host + IP Referer + UA 黑名单 + Sec-Fetch 导航头校验），
 把扫描器/爬虫/脚本请求排除在统计外。过滤是启发式的，目标是把噪声压到可忽略，
 不追求 100% 判别——肯用无头浏览器认真伪装的爬虫仍可能漏网。
 
@@ -16,6 +16,7 @@ PV 计数前先做非浏览器流量过滤（UA 黑名单 + Sec-Fetch 导航头�
 
 import re
 from datetime import date, timedelta
+from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlparse
 
@@ -64,19 +65,35 @@ def _is_bot_request(request: Request) -> bool:
     return not ua or bool(_BOT_UA_PATTERN.search(ua))
 
 
+def _has_ip_referer(request: Request) -> bool:
+    """Referer 使用 IP 地址（含 IPv4/IPv6）时视为异常导航来源。"""
+    referer = request.headers.get("referer", "")
+    host = (urlparse(referer).hostname or "") if referer else ""
+    if not host:
+        return False
+    try:
+        ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
 def should_count(request: Request) -> bool:
     """判断该请求是否为真实浏览器导航，是否计入 PV。
 
-    四层快速判定（任一不满足即排除）：
+    五层快速判定（任一不满足即排除）：
     1. Host 必须是 SITE_BASE_URL 的正式域名，排除直接扫描服务器 IP 的流量
-    2. 必须是 GET——GET 路由会被 Starlette 自动响应 HEAD 探测，扫描器常用 HEAD 探活
-    3. UA 存在且不含爬虫/扫描器特征
-    4. 若带 Sec-Fetch-Dest 则必须是 document——真实浏览器导航必带且为 document，
-       扫描器/脚本一般不带此头（不带不拦，交给前三层兜底）
+    2. Referer 不能使用 IP 地址，排除正式 Host 搭配伪造 IP Referer 的扫描流量
+    3. 必须是 GET——GET 路由会被 Starlette 自动响应 HEAD 探测，扫描器常用 HEAD 探活
+    4. UA 存在且不含爬虫/扫描器特征
+    5. 若带 Sec-Fetch-Dest 则必须是 document——真实浏览器导航必带且为 document，
+       扫描器/脚本一般不带此头（不带不拦，交给前四层兜底）
     """
     canonical_host = (urlparse(settings.SITE_BASE_URL).hostname or "").lower()
     request_host = request.headers.get("host", "").split(":")[0].lower()
     if not canonical_host or request_host != canonical_host:
+        return False
+    if _has_ip_referer(request):
         return False
     if request.method != "GET":
         return False

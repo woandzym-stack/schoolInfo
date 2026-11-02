@@ -34,6 +34,26 @@ count_cases = [
         make_request(headers={"host": "47.242.217.80", "user-agent": CHROME_UA, "referer": "https://47.242.217.80/"}),
         False,
     ),
+    (
+        "正式 Host 搭配伪造 IPv4 Referer",
+        make_request(headers={"user-agent": CHROME_UA, "referer": "https://47.242.217.80/"}),
+        False,
+    ),
+    (
+        "正式 Host 搭配带端口的 IPv4 Referer",
+        make_request(headers={"user-agent": CHROME_UA, "referer": "https://47.242.217.80:443/"}),
+        False,
+    ),
+    (
+        "正式 Host 搭配 IPv6 Referer",
+        make_request(headers={"user-agent": CHROME_UA, "referer": "http://[2001:db8::1]/"}),
+        False,
+    ),
+    (
+        "正常域名 Referer",
+        make_request(headers={"user-agent": CHROME_UA, "referer": "https://www.google.com/search?q=school"}),
+        True,
+    ),
     ("其他域名 Host", make_request(headers={"host": "example.com", "user-agent": CHROME_UA}), False),
     ("正式域名带端口", make_request(headers={"host": f"{HOST}:443", "user-agent": CHROME_UA}), True),
     ("curl 默认 UA", make_request(headers={"user-agent": "curl/8.5.0"}), False),
