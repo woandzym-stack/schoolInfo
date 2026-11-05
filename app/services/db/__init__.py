@@ -4,3 +4,8 @@ from .schools_service import schools_service
 from .weekly_run_log_service import weekly_run_log_service
 
 __all__ = ["schools_service", "admission_links_service", "weekly_run_log_service"]
+from .admission_changes_service import admission_changes_service
+from .admission_last_scrape_service import admission_last_scrape_service
+from .admission_link_snapshots_service import admission_link_snapshots_service
+from .admission_scrape_state_service import admission_scrape_state_service
+from .weekly_step_log_service import weekly_step_log_service
