@@ -19,6 +19,7 @@ class LogMiddleware:
         # 改为前缀匹配，忽略所有 AI 相关接口的 Body 日志，避免大量文本/文件数据污染日志
         # 路由前缀与 router.py 保持一致，核心网关 + 本地调试接口
         self.IGNORE_BODY_PREFIXES = (
+            "/api/v1/admin/",
         )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
@@ -130,7 +131,7 @@ class LogMiddleware:
                                 body_json[field] = "******"
                             
                         log_content += f" | Body: {json.dumps(body_json, ensure_ascii=False)}"
-                except:
+                except (ValueError, TypeError, AttributeError):
                     # 解析失败或者是 Form，直接打印前200字符
                     log_content += f" | Body: {body_bytes.decode('utf-8')[:200]}"
             

@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-import jinja2
 from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -11,14 +10,13 @@ from loguru import logger
 
 from app.api.v1.endpoints.seo import seo_router
 from app.api.v1.endpoints.ui import ui_router
+from app.api.v1.endpoints.update_pages import page_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logger import setup_logging
 from app.core.middleware import LogMiddleware
 from app.services.pv_stats import incr_pv
-
-jinja_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
 
 
 # 生命周期管理
@@ -85,6 +83,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 app.include_router(seo_router)
 
+app.include_router(page_router)
 
 app.include_router(ui_router, prefix="/ui", tags=["UI"])
 

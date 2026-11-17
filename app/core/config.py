@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     JWT_EXPIRE_DAYS: int = 7
     AUTH_COOKIE_NAME: str = "auth_token"
     SESSION_COOKIE_SECURE: bool = True  # 客户端→nginx 是 HTTPS 时可开；纯 HTTP 部署置 False
+    ADMIN_USERNAMES: str = ""           # 逗号分隔的管理员用户名；空配置表示无人有管理权限
+
+    @property
+    def admin_username_set(self) -> frozenset[str]:
+        return frozenset(name.strip() for name in self.ADMIN_USERNAMES.split(",") if name.strip())
 
     # --- 4. 组装 DATABASE_URL ---
     @property

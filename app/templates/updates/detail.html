@@ -1,0 +1,55 @@
+{% extends "updates/base.html" %}
+{% block head %}
+<meta property="og:type" content="article">
+<script type="application/ld+json">{{ json_ld|tojson }}</script>
+{% endblock %}
+{% block content %}
+<main class="page-main white">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="麵包屑"><a href="/">首頁</a><span>/</span><a href="/updates">申請快訊</a><span>/</span><span>{{ update.change_kind_label }}</span></nav>
+    <div class="detail-layout">
+      <article>
+        <header class="detail-header">
+          <div class="card-flags"><span class="badge seal">{{ update.change_kind_label }}</span><span class="badge jade">官方來源已核實</span></div>
+          <h1>{{ update.title }}</h1>
+          <p class="detail-summary">{{ update.summary }}</p>
+          <div class="detail-meta"><span>{{ update.school.name }}</span>{% if update.school.district %}<span>{{ update.school.district }}</span>{% endif %}</div>
+        </header>
+        {% if update.correction_note %}
+        <details class="correction-box" open><summary>本站更正說明</summary><p>{{ update.correction_note }}</p></details>
+        {% endif %}
+        <section class="article-section"><h2>適用對象</h2><p>{{ update.scope_text }}</p></section>
+        <section class="article-section"><h2>這次有甚麼變化？</h2><p>{{ update.change_detail }}</p></section>
+        <section class="article-section"><h2>家長現在可以做甚麼？</h2><p>{{ update.action_text }}</p></section>
+        <section class="article-section">
+          <h2>官方來源</h2>
+          <div class="source-list">
+            {% for source in update.sources %}
+            <div class="source-item"><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.name }} ↗</a><p>{{ source.support }}</p></div>
+            {% endfor %}
+          </div>
+        </section>
+      </article>
+      <aside class="detail-aside">
+        <section class="aside-block">
+          <h2>學校與相關快訊</h2>
+          <div class="time-list"><div class="time-row"><span>學校</span><strong>{{ update.school.name }}</strong></div>{% if update.school.district %}<div class="time-row"><span>地區</span><strong>{{ update.school.district }}</strong></div>{% endif %}</div>
+          <p style="margin-top:14px"><a href="/updates?keyword={{ update.school.name|urlencode }}">查看該校相關快訊 →</a></p>
+          {% if update.school.url %}<p style="margin-top:8px"><a href="{{ update.school.url }}" target="_blank" rel="noopener noreferrer">前往學校官網 ↗</a></p>{% endif %}
+        </section>
+        <section class="aside-block">
+          <h2>時間與署名</h2>
+          <div class="time-list">
+            <div class="time-row"><span>官方公告日期</span><strong>{{ update.official_published_on or '官方未說明' }}</strong></div>
+            <div class="time-row"><span>本站首次發布</span><strong>{{ update.first_published_at|hk_datetime }}</strong></div>
+            <div class="time-row"><span>本站最後核實</span><strong>{{ update.verified_at|hk_datetime }}</strong></div>
+            <div class="time-row"><span>內容最後修改</span><strong>{{ update.content_modified_at|hk_datetime }}</strong></div>
+            <div class="time-row"><span>整理</span><strong>香港插班編輯組</strong></div>
+          </div>
+        </section>
+        <div class="audit-note">本消息由本站根據學校官方來源整理。「最後核實」表示編輯查看依據的時間，不代表本站保證目前仍可申請。</div>
+      </aside>
+    </div>
+  </div>
+</main>
+{% endblock %}

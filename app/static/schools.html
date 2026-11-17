@@ -658,6 +658,8 @@
         {{ t.label }}<span class="cnt" v-if="!loading">{{ t.count }}</span>
       </button>
       <div class="stagebar-auth" v-if="auth.loaded">
+        <a v-if="auth.user && auth.user.is_admin" class="top-nav-link" href="/ui/admin/updates" title="编辑和发布申请快讯">快讯管理</a>
+        <a class="top-nav-link" href="/updates" title="查看人工核实的申请快讯">申请快讯</a>
         <a v-if="auth.user" class="top-nav-link" href="/ui/subscriptions" title="查看已收藏的学校">我的收藏</a>
         <div class="stagebar-contact-wrap">
           <button type="button" class="top-nav-link top-contact-link" :aria-expanded="showContact"

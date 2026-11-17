@@ -19,6 +19,15 @@ from app.services import auth_service
 router = APIRouter()
 
 
+def user_out(user: Users) -> UserOut:
+    return UserOut(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_admin=user.username in settings.admin_username_set,
+    )
+
+
 @router.post("/register", response_model=SingleResponse, summary="注册（成功即登录）")
 async def register(
     body: RegisterIn,
@@ -39,7 +48,7 @@ async def register(
 
     user, token = await auth_service.register(db, body.username, body.password, body.email, ip)
     set_auth_cookie(response, token)
-    return SingleResponse(data=UserOut(id=user.id, username=user.username, email=user.email))
+    return SingleResponse(data=user_out(user))
 
 
 @router.post("/login", response_model=SingleResponse, summary="登录")
@@ -59,7 +68,7 @@ async def login(
 
     user, token = await auth_service.login(db, body.username, body.password)
     set_auth_cookie(response, token)
-    return SingleResponse(data=UserOut(id=user.id, username=user.username, email=user.email))
+    return SingleResponse(data=user_out(user))
 
 
 @router.post("/logout", response_model=SingleResponse, summary="登出")
@@ -72,7 +81,7 @@ async def logout(response: Response) -> SingleResponse:
 @router.get("/me", response_model=SingleResponse, summary="当前登录用户")
 async def me(user: Annotated[Users, Depends(get_current_user)]) -> SingleResponse:
     """前端页面加载时探测登录态用；未登录返回 401。"""
-    return SingleResponse(data=UserOut(id=user.id, username=user.username, email=user.email))
+    return SingleResponse(data=user_out(user))
 
 
 @router.put("/password", response_model=SingleResponse, summary="修改密码")

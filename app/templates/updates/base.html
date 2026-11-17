@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <meta name="description" content="{{ description or '香港學校插班申請快訊與官方來源。' }}">
+  <meta name="robots" content="{{ robots or 'index,follow' }}">
+  {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="香港插班">
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:description" content="{{ description or '香港學校插班申請快訊與官方來源。' }}">
+  {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+  <meta property="og:locale" content="zh_HK">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link href="/static/fonts/fonts.css" rel="stylesheet">
+  <link href="/static/updates.css" rel="stylesheet">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="masthead">
+    <div class="container masthead-inner">
+      <a class="brand" href="/">
+        <span class="seal">插</span>
+        <span><span class="brand-name">香港插班</span><span class="brand-sub" style="display:block">學校名錄 · 申請快訊 · 官方來源</span></span>
+      </a>
+      <nav class="site-nav" aria-label="網站導覽">
+        <a href="/">學校名錄</a>
+        <a href="/updates" class="active">申請快訊</a>
+        <a href="/ui/subscriptions">我的收藏</a>
+      </nav>
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+  <footer class="site-footer"><div class="container">申請安排以學校最新公告為準；本站快訊由人工根據官方來源整理。</div></footer>
+</body>
+</html>
