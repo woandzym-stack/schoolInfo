@@ -35,12 +35,17 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
 .section-kicker { margin-bottom: 6px; color: var(--seal); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
 .section-heading h1 { font-size: clamp(28px, 4vw, 38px); }
 .section-heading p { max-width: 720px; margin-top: 9px; color: var(--slate); font-size: 14px; }
+.stage-tabs { display: flex; gap: 28px; margin-bottom: 20px; border-bottom: 1px solid var(--hairline); }
+.stage-tab { position: relative; padding: 10px 2px 12px; color: var(--slate); font-size: 15px; font-weight: 600; text-decoration: none; letter-spacing: .04em; transition: color .15s ease; }
+.stage-tab:hover { color: var(--ink); }
+.stage-tab.active { color: var(--ink); }
+.stage-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--seal); border-radius: 2px; }
 .filter-panel { padding: 18px; margin-bottom: 22px; background: var(--card); border: 1px solid var(--hairline); border-radius: 7px; }
-.filter-grid { display: grid; grid-template-columns: 1.5fr 1fr 1.2fr; gap: 10px; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { color: var(--ink); font-size: 12px; font-weight: 600; }
 .field input, .field select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #bcc6d4; border-radius: 5px; background: var(--card); color: var(--ink); font: inherit; }
-.filter-actions { display: flex; gap: 10px; margin-top: 14px; }
+.filter-clear { flex-direction: row; align-items: center; align-self: end; gap: 10px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; border: 1px solid #bcc6d4; border-radius: 5px; background: var(--card); color: var(--ink); font: 600 13px inherit; text-decoration: none; cursor: pointer; }
 .btn:hover { background: var(--paper); color: var(--ink); }
 .btn.primary { border-color: var(--seal); background: var(--seal); color: #fff7f0; }

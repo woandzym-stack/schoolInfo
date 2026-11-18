@@ -83,9 +83,6 @@ def main(cleanup_only: bool = False) -> None:
                 "change_kind": "deadline_changed",
                 "title": TEST_TITLE,
                 "summary": "仅验证本地发布链路，不代表任何学校安排。",
-                "scope_text": "本地测试范围",
-                "change_detail": "本地测试变化说明",
-                "action_text": "本地测试完成后将删除",
                 "sources": [
                     {
                         "name": "本地测试来源",
@@ -93,9 +90,7 @@ def main(cleanup_only: bool = False) -> None:
                         "support": "仅验证 JSON 与来源展示",
                     }
                 ],
-                "official_published_on": detected_on,
                 "verified_at": f"{detected_on}T12:00:00+08:00",
-                "correction_note": "",
             }
             created_resp = client.post("/api/v1/admin/updates", json=payload)
             assert created_resp.status_code == 200, created_resp.text
@@ -117,7 +112,6 @@ def main(cleanup_only: bool = False) -> None:
                 {
                     "title": TEST_TITLE + "（已修改）",
                     "summary": "本地修改验收",
-                    "correction_note": "本地更正说明",
                 }
             )
             payload.pop("school_id")

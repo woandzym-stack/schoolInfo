@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
@@ -32,15 +32,10 @@ class AdmissionUpdateContent(BaseModel):
     change_kind: ChangeKind = "other"
     title: str = Field(default="", max_length=120)
     summary: str = Field(default="", max_length=300)
-    scope_text: str = Field(default="", max_length=500)
-    change_detail: str = Field(default="", max_length=3000)
-    action_text: str = Field(default="", max_length=1500)
     sources: list[AdmissionSourceIn] = Field(default_factory=list, max_length=5)
-    official_published_on: Optional[date] = None
     verified_at: Optional[datetime] = None
-    correction_note: str = Field(default="", max_length=1000)
 
-    @field_validator("title", "summary", "scope_text", "change_detail", "action_text", "correction_note")
+    @field_validator("title", "summary")
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
@@ -61,15 +56,12 @@ class AdmissionUpdateContent(BaseModel):
         required = (
             (self.title, "标题"),
             (self.summary, "一句话重点"),
-            (self.scope_text, "适用范围"),
-            (self.change_detail, "变化说明"),
-            (self.action_text, "家长下一步"),
         )
         errors.extend(f"{label}不能为空" for value, label in required if not value)
         if not self.sources:
             errors.append("至少需要一个官方来源")
-        if any(not source.name or not source.support for source in self.sources):
-            errors.append("每个官方来源都需要填写来源名称和对应信息")
+        if any(not source.name for source in self.sources):
+            errors.append("每个官方来源都需要填写来源名称")
         if self.verified_at is None:
             errors.append("本站核实时间不能为空")
         return errors
@@ -81,12 +73,10 @@ class AdmissionUpdateCreate(AdmissionUpdateContent):
 
 
 class AdmissionUpdateDelete(BaseModel):
-    reason: str = Field(min_length=1, max_length=500)
+    # 草稿删除可为空；已发布快讯删除必填，由 Service 按当前状态校验
+    reason: str = Field(default="", max_length=500)
 
     @field_validator("reason")
     @classmethod
     def strip_reason(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("删除原因不能为空")
-        return value
+        return value.strip()

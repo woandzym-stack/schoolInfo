@@ -17,6 +17,7 @@ class AdmissionUpdates(SQLModel, table=True):
     change_kind: str = Field(default="other", sa_column=Column("change_kind", String(30), nullable=False))
     title: str = Field(default="", sa_column=Column("title", String(120), nullable=False))
     summary: str = Field(default="", sa_column=Column("summary", String(300), nullable=False))
+    # 以下字段已随快讯内容简化而废弃：不再读写，保留列以兼容现有表（非空约束），后续迁移再删列
     scope_text: str = Field(default="", sa_column=Column("scope_text", String(500), nullable=False))
     change_detail: str = Field(default="", sa_column=Column("change_detail", Text, nullable=False))
     action_text: str = Field(default="", sa_column=Column("action_text", Text, nullable=False))

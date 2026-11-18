@@ -32,9 +32,24 @@ async def updates_page(
     db: Annotated[AsyncSession, Depends(get_async_db)],
     page: int = Query(default=1, ge=1),
     keyword: str = Query(default="", max_length=100),
-    stage: str = Query(default="", pattern="^(|primary|secondary)$"),
-    change_kind: str = Query(default="", max_length=30),
+    stage: str = Query(default="secondary", pattern="^(primary|secondary)$"),
+    district: str = Query(default="", max_length=50),
+    school_type: str = Query(default="", max_length=50, alias="type"),
+    gender: str = Query(default="", max_length=20),
+    banding: str = Query(default="", max_length=20),
+    language: str = Query(default="", max_length=50),
+    religion: str = Query(default="", max_length=100),
+    school_net: str = Query(default="", max_length=20),
 ) -> HTMLResponse:
+    filters = {
+        "district": district,
+        "type": school_type,
+        "gender": gender,
+        "banding": banding,
+        "language": language,
+        "religion": religion,
+        "school_net": school_net,
+    }
     try:
         data = await admission_update_service.list_public_updates(
             db,
@@ -42,30 +57,46 @@ async def updates_page(
             page_size=20,
             keyword=keyword,
             stage=stage,
-            change_kind=change_kind,
+            district=district,
+            school_type=school_type,
+            gender=gender,
+            banding=banding,
+            language=language,
+            religion=religion,
+            school_net=school_net,
         )
     except HTTPException as exc:
         if exc.status_code == 404:
             return _not_found(request)
         raise
-    filtered = bool(keyword or stage or change_kind)
-    canonical = f"{settings.SITE_BASE_URL}/updates"
+    filter_defs, filter_options = await admission_update_service.list_public_filter_options(db, stage)
+    # 学段是常态视图（中学/小学两个基础列表均可索引），仅其他筛选条件触发 noindex
+    filtered = bool(keyword or any(filters.values()))
+    canonical_path = "/updates"
+    canonical_query = []
+    if stage == "primary":
+        canonical_query.append("stage=primary")
     if page > 1 and not filtered:
-        canonical += f"?page={page}"
+        canonical_query.append(f"page={page}")
+    if canonical_query:
+        canonical_path += "?" + "&".join(canonical_query)
+    canonical = f"{settings.SITE_BASE_URL}{canonical_path}"
     robots = "noindex,follow" if filtered or not data["total"] else "index,follow"
     return templates.TemplateResponse(
         request=request,
         name="updates/list.html",
         context={
-            "title": "申請快訊｜香港插班",
-            "description": "了解香港學校插班申請的具體變化、適用對象、下一步與官方來源。",
+            "title": "申请快讯｜香港插班",
+            "description": "了解香港学校插班申请的具体变化与官方来源。",
             "canonical": canonical,
             "robots": robots,
             "data": data,
             "keyword": keyword,
             "stage": stage,
-            "change_kind": change_kind,
-            "kind_labels": admission_update_service.CHANGE_KIND_LABELS,
+            "filters": filters,
+            "filter_defs": filter_defs,
+            "filter_options": filter_options,
+            "filtered": filtered,
             "page_numbers": list(range(max(1, page - 2), min(data["pages"], page + 2) + 1)),
         },
     )
@@ -89,9 +120,9 @@ async def update_detail_page(
         "datePublished": data["first_published_at"],
         "dateModified": data["content_modified_at"] or data["first_published_at"],
         "mainEntityOfPage": canonical,
-        "author": {"@type": "Organization", "name": "香港插班編輯組"},
+        "author": {"@type": "Organization", "name": "香港插班编辑组"},
         "publisher": {"@type": "Organization", "name": "香港插班"},
-        "inLanguage": "zh-Hant",
+        "inLanguage": "zh-Hans",
     }
     return templates.TemplateResponse(
         request=request,

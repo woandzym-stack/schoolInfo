@@ -35,6 +35,10 @@
       <div class="work-card">
         <div class="filters">
           <el-select v-model="candidateFilters.status" style="width:130px" @change="candidatePage=1;loadCandidates()"><el-option label="待处理" value="pending"></el-option><el-option label="已采用" value="adopted"></el-option><el-option label="已忽略" value="ignored"></el-option><el-option label="全部" value="all"></el-option></el-select>
+          <el-select v-model="candidateFilters.change_type" style="width:150px" @change="candidatePage=1;loadCandidates()"><el-option label="全部变化类型" value=""></el-option><el-option v-for="t in candidateTypes" :key="t.value" :label="t.label" :value="t.value"></el-option></el-select>
+          <el-select v-model="candidateFilters.school_id" filterable remote clearable reserve-keyword :remote-method="searchCandidateSchools" :loading="candidateSchoolSearching" placeholder="按学校筛选（输入搜索）" style="width:240px" @change="candidatePage=1;loadCandidates()"><el-option v-for="school in candidateSchoolOptions" :key="school.id" :label="school.name" :value="school.id"></el-option></el-select>
+          <el-select v-model="candidateFilters.district" style="width:140px" @change="candidatePage=1;loadCandidates()"><el-option label="全部地区" value=""></el-option><el-option v-for="d in districts" :key="d" :label="d" :value="d"></el-option></el-select>
+          <el-select v-model="candidateFilters.stage" style="width:150px" @change="candidatePage=1;loadCandidates()"><el-option label="全部学校类型" value=""></el-option><el-option label="中学" value="secondary"></el-option><el-option label="小学" value="primary"></el-option></el-select>
           <el-date-picker v-model="candidateFilters.detected_on" type="date" value-format="YYYY-MM-DD" placeholder="检测日期" style="width:160px" @change="candidatePage=1;loadCandidates()"></el-date-picker>
           <el-button @click="showToday">只看今天</el-button><el-button text @click="clearCandidateDate">全部日期</el-button>
           <span class="filter-note">共 {{ candidateTotal }} 条 · 每页 20 条 · 检测时间倒序</span>
@@ -43,7 +47,7 @@
           <el-table-column label="学校 / 检测时间" min-width="170"><template #default="scope"><div class="school-cell"><strong>{{ scope.row.school.name }}</strong><small>{{ fmt(scope.row.detected_at) }} · {{ scope.row.school.district || '—' }}</small></div></template></el-table-column>
           <el-table-column label="类型" width="140"><template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.change_type }}</el-tag><div style="margin-top:5px"><el-tag v-if="scope.row.status !== 'pending'" size="small" :type="scope.row.status === 'adopted' ? 'success' : 'info'">{{ statusLabel(scope.row.status) }}</el-tag></div></template></el-table-column>
           <el-table-column label="原始摘要（仅前 200 字，不是完整快照）" min-width="300"><template #default="scope"><div class="change-summary"><div class="old">旧：{{ scope.row.old_value || '—' }}</div><div class="new">新：{{ scope.row.new_value || '—' }}</div></div></template></el-table-column>
-          <el-table-column label="来源" width="105"><template #default="scope"><a v-if="scope.row.url" :href="scope.row.url" target="_blank" rel="noopener noreferrer">打开官网 ↗</a><span v-else class="muted">URL 不可用</span></template></el-table-column>
+          <el-table-column label="变更页面" width="105"><template #default="scope"><a v-if="scope.row.url" :href="scope.row.url" target="_blank" rel="noopener noreferrer">打开页面 ↗</a><span v-else class="muted">URL 不可用</span></template></el-table-column>
           <el-table-column label="操作" width="220" fixed="right"><template #default="scope"><div class="action-group">
             <el-button v-if="scope.row.status === 'pending'" size="small" type="primary" :loading="generatingId === scope.row.id" @click="generateDraft(scope.row)">生成草稿</el-button>
             <el-button v-if="scope.row.status === 'pending'" size="small" text @click="ignoreCandidate(scope.row)">忽略</el-button>
@@ -59,14 +63,14 @@
     <section v-show="activeTab === 'updates'">
       <div class="admin-heading"><div><h1>快讯管理</h1><p>单版本保存；已发布内容修改后保存即公开，软删除后公开页面立即不可见。</p></div><el-button type="primary" @click="openManual">手动新建</el-button></div>
       <div class="work-card">
-        <div class="filters"><el-select v-model="updateFilters.status" style="width:130px" @change="updatePage=1;loadUpdates()"><el-option label="全部状态" value=""></el-option><el-option label="草稿" value="draft"></el-option><el-option label="已发布" value="published"></el-option><el-option label="已删除" value="deleted"></el-option></el-select><el-input v-model="updateFilters.keyword" placeholder="按学校名称搜索" clearable style="width:240px" @keyup.enter="updatePage=1;loadUpdates()" @clear="updatePage=1;loadUpdates()"></el-input><el-button @click="updatePage=1;loadUpdates()">查询</el-button><span class="filter-note">共 {{ updateTotal }} 条</span></div>
+        <div class="filters"><el-select v-model="updateFilters.status" style="width:130px" @change="updatePage=1;loadUpdates()"><el-option label="全部（不含已删除）" value=""></el-option><el-option label="草稿" value="draft"></el-option><el-option label="已发布" value="published"></el-option><el-option label="已删除" value="deleted"></el-option></el-select><el-select v-model="updateFilters.change_kind" style="width:160px" @change="updatePage=1;loadUpdates()"><el-option label="全部变化类型" value=""></el-option><el-option v-for="kind in kinds" :key="kind.value" :label="kind.label" :value="kind.value"></el-option></el-select><el-select v-model="updateFilters.district" style="width:140px" @change="updatePage=1;loadUpdates()"><el-option label="全部地区" value=""></el-option><el-option v-for="d in districts" :key="d" :label="d" :value="d"></el-option></el-select><el-select v-model="updateFilters.stage" style="width:150px" @change="updatePage=1;loadUpdates()"><el-option label="全部学校类型" value=""></el-option><el-option label="中学" value="secondary"></el-option><el-option label="小学" value="primary"></el-option></el-select><el-select v-model="updateFilters.school_id" filterable remote clearable reserve-keyword :remote-method="searchFilterSchools" :loading="filterSchoolSearching" placeholder="按学校筛选（输入搜索）" style="width:240px" @change="updatePage=1;loadUpdates()"><el-option v-for="school in filterSchoolOptions" :key="school.id" :label="school.name" :value="school.id"></el-option></el-select><el-input v-model="updateFilters.keyword" placeholder="按学校名称搜索" clearable style="width:240px" @keyup.enter="updatePage=1;loadUpdates()" @clear="updatePage=1;loadUpdates()"></el-input><el-button @click="updatePage=1;loadUpdates()">查询</el-button><span class="filter-note">共 {{ updateTotal }} 条</span></div>
         <el-table :data="updates" v-loading="updateLoading" row-key="id" style="width:100%">
           <el-table-column label="快讯" min-width="280"><template #default="scope"><div class="school-cell"><strong>{{ scope.row.title || '（未填写标题）' }}</strong><small>#{{ scope.row.id }} · {{ scope.row.school.name }}</small></div></template></el-table-column>
           <el-table-column label="类型" width="140"><template #default="scope">{{ kindLabel(scope.row.change_kind) }}</template></el-table-column>
           <el-table-column label="状态" width="100"><template #default="scope"><el-tag size="small" :type="scope.row.status === 'published' ? 'success' : scope.row.status === 'deleted' ? 'danger' : 'info'">{{ statusLabel(scope.row.status) }}</el-tag></template></el-table-column>
           <el-table-column label="首次发布" width="150"><template #default="scope"><span class="muted">{{ fmt(scope.row.first_published_at) }}</span></template></el-table-column>
           <el-table-column label="最后修改" width="150"><template #default="scope"><span class="muted">{{ fmt(scope.row.updated_at) }}</span></template></el-table-column>
-          <el-table-column label="操作" width="235" fixed="right"><template #default="scope"><div class="action-group"><el-button size="small" type="primary" @click="openUpdate(scope.row.id)">{{ scope.row.status === 'deleted' ? '查看' : '编辑' }}</el-button><el-button v-if="scope.row.status === 'published'" size="small" @click="openPublic(scope.row.id)">公开页</el-button><el-button v-if="scope.row.status === 'deleted'" size="small" @click="restoreUpdate(scope.row.id)">恢复草稿</el-button><el-button v-else size="small" type="danger" text @click="deleteUpdate(scope.row.id)">删除</el-button></div></template></el-table-column>
+          <el-table-column label="操作" width="235" fixed="right"><template #default="scope"><div class="action-group"><el-button size="small" type="primary" @click="openUpdate(scope.row.id)">{{ scope.row.status === 'deleted' ? '查看' : '编辑' }}</el-button><el-button v-if="scope.row.status === 'published'" size="small" @click="openPublic(scope.row.id)">公开页</el-button><el-button v-if="scope.row.status === 'deleted'" size="small" @click="restoreUpdate(scope.row.id)">恢复草稿</el-button><el-button v-else size="small" type="danger" text @click="deleteUpdate(scope.row.id, scope.row.status)">删除</el-button></div></template></el-table-column>
           <template #empty><el-empty description="还没有快讯，从候选生成草稿或手动新建"></el-empty></template>
         </el-table>
         <div class="pager"><el-pagination background layout="prev, pager, next, total" :total="updateTotal" :page-size="20" :current-page="updatePage" @current-change="changeUpdatePage"></el-pagination></div>
@@ -85,23 +89,18 @@
           <div><label class="field-label">变化类型 *</label><el-select v-model="editor.change_kind" :disabled="readOnly" style="width:100%"><el-option v-for="kind in kinds" :key="kind.value" :label="kind.label" :value="kind.value"></el-option></el-select></div>
           <div class="wide"><label class="field-label">标题 *</label><el-input v-model="editor.title" :disabled="readOnly" maxlength="120" show-word-limit placeholder="学校＋具体变化"></el-input></div>
           <div class="wide"><label class="field-label">一句话重点 *</label><el-input v-model="editor.summary" :disabled="readOnly" type="textarea" :rows="2" maxlength="300" show-word-limit></el-input></div>
-          <div class="wide"><label class="field-label">适用范围 *</label><el-input v-model="editor.scope_text" :disabled="readOnly" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="学年、年级、适用人群；未知如实说明"></el-input></div>
-          <div class="wide"><label class="field-label">变化说明 *</label><el-input v-model="editor.change_detail" :disabled="readOnly" type="textarea" :rows="6" maxlength="3000" show-word-limit placeholder="只写已经由官方来源核实的变化"></el-input></div>
-          <div class="wide"><label class="field-label">家长下一步 *</label><el-input v-model="editor.action_text" :disabled="readOnly" type="textarea" :rows="4" maxlength="1500" show-word-limit placeholder="尚未申请／已经申请的人分别需要做什么（仅适用时）"></el-input></div>
         </div></section>
 
-        <section class="form-section"><h2>官方来源与时间</h2><p class="section-help">至少一个 HTTP(S) 来源。候选只预填 URL，来源对应信息仍需编辑填写。</p>
-          <div v-for="(source, index) in editor.sources" :key="index" class="source-row"><el-input v-model="source.name" :disabled="readOnly" placeholder="来源名称 *"></el-input><el-input v-model="source.url" :disabled="readOnly" placeholder="https://… *"></el-input><el-button class="remove" :disabled="readOnly" type="danger" text @click="editor.sources.splice(index,1)">移除</el-button><el-input class="support" v-model="source.support" :disabled="readOnly" placeholder="该来源支持哪些信息 *"></el-input></div>
+        <section class="form-section"><h2>官方来源与时间</h2><p class="section-help">至少一个 HTTP(S) 来源，需填写来源名称，对应信息可空。候选只预填 URL 与默认来源名称。</p>
+          <div v-for="(source, index) in editor.sources" :key="index" class="source-row"><el-input v-model="source.name" :disabled="readOnly" placeholder="来源名称 *"></el-input><el-input v-model="source.url" :disabled="readOnly" placeholder="https://… *"></el-input><el-button class="remove" :disabled="readOnly" type="danger" text @click="editor.sources.splice(index,1)">移除</el-button><el-input class="support" v-model="source.support" :disabled="readOnly" placeholder="该来源支持哪些信息（可空）"></el-input></div>
           <el-button :disabled="readOnly || editor.sources.length >= 5" @click="addSource">添加来源（{{ editor.sources.length }}/5）</el-button>
-          <div class="form-grid" style="margin-top:14px"><div><label class="field-label">官方公告日期（可空）</label><el-date-picker v-model="editor.official_published_on" :disabled="readOnly" type="date" value-format="YYYY-MM-DD" placeholder="有官方依据才填写" style="width:100%"></el-date-picker></div><div><label class="field-label">本站核实时间 *（香港时间）</label><el-date-picker v-model="editor.verified_at" :disabled="readOnly" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="人工查看依据的时间" style="width:100%"></el-date-picker></div></div>
+          <div style="margin-top:14px"><label class="field-label">本站核实时间 *（香港时间）</label><el-date-picker v-model="editor.verified_at" :disabled="readOnly" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="人工查看依据的时间" style="width:100%"></el-date-picker></div>
         </section>
-
-        <section class="form-section"><h2>公开更正说明（可选）</h2><p class="section-help">本站写错时填写；学校后来改变安排应另写快讯。公开详情默认允许索引并进入 sitemap。</p><el-input v-model="editor.correction_note" :disabled="readOnly" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="说明更正内容，普通文字修改可留空"></el-input><el-checkbox v-model="editor.confirm_verified" :disabled="readOnly" style="margin-top:12px">我已查看官方依据，确认标题、影响与下一步没有超出证据</el-checkbox></section>
       </div>
 
-      <aside class="preview-panel"><div class="preview-header"><h2>公开预览</h2><el-radio-group v-model="previewMode" size="small"><el-radio-button value="card">列表卡片</el-radio-button><el-radio-button value="detail">快讯详情</el-radio-button></el-radio-group></div><div class="preview-body"><div class="preview-card"><el-tag size="small" effect="plain">{{ kindLabel(editor.change_kind) }}</el-tag><h3>{{ editor.title || '（尚未填写标题）' }}</h3><template v-if="previewMode === 'card'"><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">首次发布时间发布后写入 · 默认允许索引</div></template><template v-else><p><strong>适用对象</strong><br>{{ editor.scope_text || '（尚未填写适用范围）' }}</p><p style="margin-top:12px"><strong>变化说明</strong><br>{{ editor.change_detail || '（尚未填写变化说明）' }}</p><p style="margin-top:12px"><strong>家长下一步</strong><br>{{ editor.action_text || '（尚未填写下一步）' }}</p><div class="preview-meta">官方来源 {{ editor.sources.length }} 个<br>核实时间 {{ fmt(editor.verified_at) }}</div></template></div></div></aside>
+      <aside class="preview-panel"><div class="preview-header"><h2>公开预览</h2><el-radio-group v-model="previewMode" size="small"><el-radio-button value="card">列表卡片</el-radio-button><el-radio-button value="detail">快讯详情</el-radio-button></el-radio-group></div><div class="preview-body"><div class="preview-card"><el-tag size="small" effect="plain">{{ kindLabel(editor.change_kind) }}</el-tag><h3>{{ editor.title || '（尚未填写标题）' }}</h3><template v-if="previewMode === 'card'"><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">首次发布时间发布后写入 · 默认允许索引</div></template><template v-else><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">官方来源 {{ editor.sources.length }} 个<br>核实时间 {{ fmt(editor.verified_at) }}</div></template></div></div></aside>
     </div>
-    <div class="editor-actions"><el-button v-if="editor.id && editor.status === 'deleted'" type="primary" @click="restoreUpdate(editor.id)">恢复为草稿</el-button><el-button v-if="editor.id && editor.status !== 'deleted'" type="danger" text @click="deleteUpdate(editor.id)">软删除</el-button><span class="spacer"></span><span class="editor-note">{{ editor.status === 'published' ? '保存后立即公开，请先检查预览' : '草稿不会出现在公开页面' }}</span><el-button @click="beforeClose(() => editorVisible=false)">关闭</el-button><el-button v-if="!readOnly && editor.status === 'draft'" :loading="saving" @click="saveContent">保存草稿</el-button><el-button v-if="!readOnly && editor.status === 'draft'" type="primary" :loading="saving" @click="publishContent">发布快讯</el-button><el-button v-if="!readOnly && editor.status === 'published'" type="primary" :loading="saving" @click="savePublished">保存并公开</el-button></div>
+    <div class="editor-actions"><el-button v-if="editor.id && editor.status === 'deleted'" type="primary" @click="restoreUpdate(editor.id)">恢复为草稿</el-button><el-button v-if="editor.id && editor.status !== 'deleted'" type="danger" text @click="deleteUpdate(editor.id, editor.status)">软删除</el-button><span class="spacer"></span><span class="editor-note">{{ editor.status === 'published' ? '保存后立即公开，请先检查预览' : '草稿不会出现在公开页面' }}</span><el-button @click="beforeClose(() => editorVisible=false)">关闭</el-button><el-button v-if="!readOnly && editor.status === 'draft'" :loading="saving" @click="saveContent">保存草稿</el-button><el-button v-if="!readOnly && editor.status === 'draft'" type="primary" :loading="saving" @click="publishContent">发布快讯</el-button><el-button v-if="!readOnly && editor.status === 'published'" type="primary" :loading="saving" @click="savePublished">保存并公开</el-button></div>
   </el-drawer>
   <auth-modal></auth-modal>
 </div>
@@ -116,8 +115,10 @@ createApp({
     const auth = SchoolAuth.state;
     const state = reactive({
       activeTab: 'candidates', permissionError: '', candidates: [], candidateTotal: 0, candidatePage: 1, candidateLoading: false,
-      candidateFilters: { status: 'pending', detected_on: '' }, generatingId: null,
-      updates: [], updateTotal: 0, updatePage: 1, updateLoading: false, updateFilters: { status: '', keyword: '' },
+      candidateFilters: { status: 'pending', detected_on: '', change_type: '', school_id: null, district: '', stage: '' }, generatingId: null,
+      candidateSchoolOptions: [], candidateSchoolSearching: false,
+      updates: [], updateTotal: 0, updatePage: 1, updateLoading: false, updateFilters: { status: '', keyword: '', change_kind: '', school_id: null, district: '', stage: '' },
+      filterSchoolOptions: [], filterSchoolSearching: false, districts: [],
       editorVisible: false, saving: false, editor: blankEditor(), editorCandidate: null, editorReady: false, dirty: false,
       previewMode: 'card', schoolOptions: [], schoolSearching: false,
     });
@@ -127,8 +128,13 @@ createApp({
       { value: 'grades_changed', label: '年级调整' }, { value: 'assessment_changed', label: '笔试／面试安排' },
       { value: 'closed', label: '停止接受申请' }, { value: 'entry_updated', label: '入口调整' }, { value: 'other', label: '其他变化' },
     ];
+    const candidateTypes = [
+      { value: 'added', label: '新增入口' }, { value: 'removed', label: '移除入口' },
+      { value: 'text_changed', label: '文字变化' }, { value: 'grades_changed', label: '年级变化' },
+      { value: 'content_changed', label: '内容变化' },
+    ];
     function blankEditor() {
-      return { id: null, school_id: null, status: 'draft', deleted_reason: null, change_kind: 'other', title: '', summary: '', scope_text: '', change_detail: '', action_text: '', sources: [], official_published_on: null, verified_at: null, correction_note: '', confirm_verified: false, candidate_ids: [] };
+      return { id: null, school_id: null, status: 'draft', deleted_reason: null, change_kind: 'other', title: '', summary: '', sources: [], verified_at: null, candidate_ids: [] };
     }
     const readOnly = computed(() => state.editor.status === 'deleted');
     function kindLabel(value) { return (kinds.find(k => k.value === value) || {}).label || value || '其他变化'; }
@@ -142,7 +148,8 @@ createApp({
     async function loadCandidates() {
       state.candidateLoading = true;
       try {
-        const params = new URLSearchParams({ page: state.candidatePage, page_size: 20, status: state.candidateFilters.status });
+        const params = new URLSearchParams({ page: state.candidatePage, page_size: 20, status: state.candidateFilters.status, change_type: state.candidateFilters.change_type, district: state.candidateFilters.district, stage: state.candidateFilters.stage });
+        if (state.candidateFilters.school_id) params.set('school_id', state.candidateFilters.school_id);
         if (state.candidateFilters.detected_on) params.set('detected_on', state.candidateFilters.detected_on);
         const data = await SchoolAuth.api('/api/v1/admin/admission-changes?' + params);
         state.candidates = data.items; state.candidateTotal = data.total;
@@ -151,12 +158,16 @@ createApp({
     async function loadUpdates() {
       state.updateLoading = true;
       try {
-        const params = new URLSearchParams({ page: state.updatePage, page_size: 20, status: state.updateFilters.status, keyword: state.updateFilters.keyword });
+        const params = new URLSearchParams({ page: state.updatePage, page_size: 20, status: state.updateFilters.status, keyword: state.updateFilters.keyword, change_kind: state.updateFilters.change_kind, district: state.updateFilters.district, stage: state.updateFilters.stage });
+        if (state.updateFilters.school_id) params.set('school_id', state.updateFilters.school_id);
         const data = await SchoolAuth.api('/api/v1/admin/updates?' + params);
         state.updates = data.items; state.updateTotal = data.total;
       } catch (e) { errorMessage(e); } finally { state.updateLoading = false; }
     }
-    async function loadAll() { state.permissionError = ''; await Promise.all([loadCandidates(), loadUpdates()]); }
+    async function loadDistricts() {
+      try { state.districts = await SchoolAuth.api('/api/v1/admin/school-districts'); } catch (e) { errorMessage(e); }
+    }
+    async function loadAll() { state.permissionError = ''; await Promise.all([loadCandidates(), loadUpdates(), loadDistricts()]); }
     function changeCandidatePage(page) { state.candidatePage = page; loadCandidates(); }
     function changeUpdatePage(page) { state.updatePage = page; loadUpdates(); }
 
@@ -180,7 +191,7 @@ createApp({
     }
     function setEditor(data) {
       state.editorReady = false;
-      state.editor = Object.assign(blankEditor(), data, { confirm_verified: false, sources: (data.sources || []).map(s => ({ name: s.name, url: s.url, support: s.support })) });
+      state.editor = Object.assign(blankEditor(), data, { sources: (data.sources || []).map(s => ({ name: s.name, url: s.url, support: s.support })) });
       state.schoolOptions = data.school ? [data.school] : [];
       state.previewMode = 'card'; state.dirty = false;
       nextTick(() => { state.editorReady = true; });
@@ -191,8 +202,25 @@ createApp({
       state.schoolSearching = true;
       try { const data = await SchoolAuth.api('/api/v1/schools/search?name=' + encodeURIComponent(keyword.trim())); state.schoolOptions = data.slice(0, 20); } catch (e) { errorMessage(e); } finally { state.schoolSearching = false; }
     }
+    async function searchSchoolOptions(keyword, optionsKey, searchingKey, selectedId) {
+      if (!keyword || !keyword.trim()) return;
+      state[searchingKey] = true;
+      try {
+        const data = await SchoolAuth.api('/api/v1/schools/search?name=' + encodeURIComponent(keyword.trim()));
+        const options = data.slice(0, 20);
+        const selected = state[optionsKey].find(s => s.id === selectedId);
+        if (selected && !options.some(s => s.id === selected.id)) options.unshift(selected);
+        state[optionsKey] = options;
+      } catch (e) { errorMessage(e); } finally { state[searchingKey] = false; }
+    }
+    function searchFilterSchools(keyword) {
+      return searchSchoolOptions(keyword, 'filterSchoolOptions', 'filterSchoolSearching', state.updateFilters.school_id);
+    }
+    function searchCandidateSchools(keyword) {
+      return searchSchoolOptions(keyword, 'candidateSchoolOptions', 'candidateSchoolSearching', state.candidateFilters.school_id);
+    }
     function payload(includeSchool) {
-      const body = { change_kind: state.editor.change_kind, title: state.editor.title, summary: state.editor.summary, scope_text: state.editor.scope_text, change_detail: state.editor.change_detail, action_text: state.editor.action_text, sources: state.editor.sources, official_published_on: state.editor.official_published_on || null, verified_at: state.editor.verified_at || null, correction_note: state.editor.correction_note };
+      const body = { change_kind: state.editor.change_kind, title: state.editor.title, summary: state.editor.summary, sources: state.editor.sources, verified_at: state.editor.verified_at || null };
       if (includeSchool) { body.school_id = state.editor.school_id; body.candidate_id = (state.editor.candidate_ids || [])[0] || null; }
       return body;
     }
@@ -212,19 +240,21 @@ createApp({
     }
     async function saveContent() { const data = await persist(); if (data) ElementPlus.ElMessage.success('草稿已保存'); }
     async function savePublished() {
-      if (!state.editor.confirm_verified) { ElementPlus.ElMessage.warning('请确认已查看官方依据'); return; }
       try { await ElementPlus.ElMessageBox.confirm('保存后公开列表与详情立即更新，确认继续？', '保存并公开', { type: 'warning' }); } catch (e) { return; }
       const data = await persist(); if (data) ElementPlus.ElMessage.success('已保存并公开');
     }
     async function publishContent() {
-      if (!state.editor.confirm_verified) { ElementPlus.ElMessage.warning('请确认已查看官方依据'); return; }
       const data = await persist(); if (!data) return;
       state.saving = true;
       try { const published = await SchoolAuth.api(`/api/v1/admin/updates/${data.id}/publish`, { method: 'POST' }); setEditor(published); loadUpdates(); loadCandidates(); ElementPlus.ElMessage.success('快讯已发布'); } catch (e) { errorMessage(e); } finally { state.saving = false; }
     }
-    async function deleteUpdate(id) {
-      let reason;
-      try { const result = await ElementPlus.ElMessageBox.prompt('删除后公开页面立即不可见，后台保留内容。请输入删除原因：', '软删除快讯', { inputPlaceholder: '误发、重复或严重事实错误等原因', inputValidator: value => !!(value && value.trim()) || '删除原因不能为空' }); reason = result.value.trim(); } catch (e) { return; }
+    async function deleteUpdate(id, status) {
+      let reason = '';
+      if (status === 'published') {
+        try { const result = await ElementPlus.ElMessageBox.prompt('删除后公开页面立即不可见，后台保留内容。请输入删除原因：', '软删除快讯', { inputPlaceholder: '误发、重复或严重事实错误等原因', inputValidator: value => !!(value && value.trim()) || '删除原因不能为空' }); reason = result.value.trim(); } catch (e) { return; }
+      } else {
+        try { await ElementPlus.ElMessageBox.confirm('草稿未公开，删除不影响读者，后台保留记录。确认删除？', '软删除快讯', { type: 'warning' }); } catch (e) { return; }
+      }
       try { const data = await SchoolAuth.api(`/api/v1/admin/updates/${id}/delete`, { method: 'POST', body: { reason } }); if (state.editor.id === id) setEditor(data); loadUpdates(); ElementPlus.ElMessage.success('已软删除'); } catch (e) { errorMessage(e); }
     }
     async function restoreUpdate(id) {
@@ -238,10 +268,12 @@ createApp({
     watch(() => state.editor, () => { if (state.editorReady) state.dirty = true; }, { deep: true });
     watch(() => auth.user, user => { if (user) loadAll(); });
     onMounted(async () => { await SchoolAuth.init(); if (auth.user) loadAll(); });
-    return { auth, SchoolAuth, state, kinds, readOnly, kindLabel, statusLabel, fmt, showToday, clearCandidateDate, loadCandidates, loadUpdates, changeCandidatePage, changeUpdatePage, generateDraft, ignoreCandidate, restoreCandidate, openManual, openUpdate, addSource, searchSchools, saveContent, savePublished, publishContent, deleteUpdate, restoreUpdate, beforeClose, openPublic,
+    return { auth, SchoolAuth, state, kinds, candidateTypes, readOnly, kindLabel, statusLabel, fmt, showToday, clearCandidateDate, loadCandidates, loadUpdates, changeCandidatePage, changeUpdatePage, generateDraft, ignoreCandidate, restoreCandidate, openManual, openUpdate, addSource, searchSchools, searchFilterSchools, searchCandidateSchools, saveContent, savePublished, publishContent, deleteUpdate, restoreUpdate, beforeClose, openPublic,
       editorVisible: computed({ get: () => state.editorVisible, set: value => state.editorVisible = value }), editor: computed(() => state.editor), saving: computed(() => state.saving), editorCandidate: computed(() => state.editorCandidate), previewMode: computed({ get: () => state.previewMode, set: value => state.previewMode = value }), schoolOptions: computed(() => state.schoolOptions), schoolSearching: computed(() => state.schoolSearching),
       candidates: computed(() => state.candidates), candidateTotal: computed(() => state.candidateTotal), candidatePage: computed({ get: () => state.candidatePage, set: value => state.candidatePage = value }), candidateLoading: computed(() => state.candidateLoading), candidateFilters: computed(() => state.candidateFilters), generatingId: computed(() => state.generatingId),
       updates: computed(() => state.updates), updateTotal: computed(() => state.updateTotal), updatePage: computed({ get: () => state.updatePage, set: value => state.updatePage = value }), updateLoading: computed(() => state.updateLoading), updateFilters: computed(() => state.updateFilters), permissionError: computed(() => state.permissionError),
+      filterSchoolOptions: computed(() => state.filterSchoolOptions), filterSchoolSearching: computed(() => state.filterSchoolSearching),
+      candidateSchoolOptions: computed(() => state.candidateSchoolOptions), candidateSchoolSearching: computed(() => state.candidateSchoolSearching), districts: computed(() => state.districts),
       activeTab: computed({ get: () => state.activeTab, set: value => state.activeTab = value }),
     };
   },

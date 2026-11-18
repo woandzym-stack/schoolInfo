@@ -14,14 +14,15 @@ def hk_datetime(value: str | None) -> str:
     return parsed.strftime("%Y-%m-%d %H:%M")
 
 
-def update_page_url(page: int, keyword: str = "", stage: str = "", change_kind: str = "") -> str:
+def update_page_url(page: int, keyword: str = "", stage: str = "", filters: dict[str, str] | None = None) -> str:
     params: dict[str, str | int] = {"page": page}
     if keyword:
         params["keyword"] = keyword
     if stage:
         params["stage"] = stage
-    if change_kind:
-        params["change_kind"] = change_kind
+    for key, value in (filters or {}).items():
+        if value:
+            params[key] = value
     query = urlencode(params)
     return f"/updates?{query}" if query else "/updates"
 

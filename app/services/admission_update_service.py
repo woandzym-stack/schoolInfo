@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,6 +17,21 @@ from app.models.schools import Schools
 from app.schemas.admission_update import AdmissionUpdateContent, AdmissionUpdateCreate
 
 HK_TZ = timezone(timedelta(hours=8))
+# 公开快讯页学校筛选维度：与学校名录一致，按学段联动（全部学段仅公共维度）
+PUBLIC_FILTER_LABELS = {
+    "district": "地区",
+    "type": "学校类型",
+    "gender": "性别",
+    "banding": "组别",
+    "language": "教学语言",
+    "school_net": "校网",
+    "religion": "宗教",
+}
+PUBLIC_FILTER_KEYS = {
+    "": ("district", "type", "gender", "religion"),
+    "secondary": ("district", "banding", "type", "gender", "language", "religion"),
+    "primary": ("district", "type", "gender", "school_net", "religion"),
+}
 CHANGE_KIND_LABELS = {
     "announcement": "安排公布",
     "opened": "开放申请",
@@ -26,6 +42,14 @@ CHANGE_KIND_LABELS = {
     "closed": "停止接受申请",
     "entry_updated": "入口调整",
     "other": "其他变化",
+}
+# 候选生成草稿时的预填标题短语：学校名 + 变化描述（公开站点统一简体，校名保留数据库原文）
+CANDIDATE_TITLE_PHRASES = {
+    "added": "新增申请入口",
+    "removed": "移除申请入口",
+    "text_changed": "申请页面文字更新",
+    "grades_changed": "申请年级调整",
+    "content_changed": "申请页面内容更新",
 }
 
 
@@ -95,26 +119,16 @@ def _public_list_item(update: AdmissionUpdates, school: Schools) -> dict[str, An
         "change_kind_label": CHANGE_KIND_LABELS.get(update.change_kind, "其他变化"),
         "title": update.title,
         "summary": update.summary,
-        "scope_text": update.scope_text,
-        "official_published_on": update.official_published_on.isoformat() if update.official_published_on else None,
         "verified_at": _hk_iso(update.verified_at),
         "first_published_at": _hk_iso(update.first_published_at),
         "content_modified_at": _hk_iso(update.content_modified_at),
-        "has_correction": bool(update.correction_note),
         "school": _school_brief(school),
     }
 
 
 def _public_detail(update: AdmissionUpdates, school: Schools) -> dict[str, Any]:
     data = _public_list_item(update, school)
-    data.update(
-        {
-            "change_detail": update.change_detail,
-            "action_text": update.action_text,
-            "sources": update.sources_json,
-            "correction_note": update.correction_note,
-        }
-    )
+    data["sources"] = update.sources_json
     return data
 
 
@@ -125,6 +139,13 @@ async def list_public_updates(
     keyword: str = "",
     stage: str = "",
     change_kind: str = "",
+    district: str = "",
+    school_type: str = "",
+    gender: str = "",
+    banding: str = "",
+    language: str = "",
+    religion: str = "",
+    school_net: str = "",
 ) -> dict[str, Any]:
     """公开 API 与 SSR 共用的可见性和筛选规则。"""
     conditions: list[Any] = [AdmissionUpdates.status == "published"]
@@ -132,6 +153,21 @@ async def list_public_updates(
         conditions.append(Schools.stage == stage)
     if change_kind:
         conditions.append(AdmissionUpdates.change_kind == change_kind)
+    if district:
+        conditions.append(Schools.district == district)
+    if school_type:
+        conditions.append(Schools.type == school_type)
+    if gender:
+        conditions.append(Schools.gender == gender)
+    if language:
+        conditions.append(Schools.language == language)
+    if religion:
+        conditions.append(Schools.religion == religion)
+    if school_net:
+        conditions.append(Schools.school_net == school_net)
+    if banding:
+        # 与名录一致：组别统一前缀匹配，选 '1' 即整档（1A/1B/1C…）
+        conditions.append(col(Schools.banding).like(f"{_escape_like(banding)}%", escape="\\"))
     keyword = keyword.strip()
     if keyword:
         escaped = _escape_like(keyword)
@@ -169,6 +205,39 @@ async def list_public_updates(
     }
 
 
+async def list_public_filter_options(
+    db: AsyncSession, stage: str = ""
+) -> tuple[list[dict[str, str]], dict[str, list[str]]]:
+    """快讯页学校筛选字段与选项：与名录同源按学段 distinct；校网排除 '0' 按编号排序，组别插入整档。"""
+    keys = PUBLIC_FILTER_KEYS.get(stage, PUBLIC_FILTER_KEYS[""])
+    defs = [{"key": key, "label": PUBLIC_FILTER_LABELS[key]} for key in keys]
+    options: dict[str, list[str]] = {}
+    for key in keys:
+        column = getattr(Schools, key)
+        stmt = select(column).where(col(column).is_not(None), column != "").distinct()
+        if stage:
+            stmt = stmt.where(Schools.stage == stage)
+        values = sorted(value for value in (await db.exec(stmt)).all() if value)
+        if key == "school_net":
+            values = sorted(
+                (value for value in values if value != "0"),
+                key=lambda value: int(value) if value.isdigit() else 0,
+            )
+        if key == "banding":
+            tiered: list[str] = []
+            seen: set[str] = set()
+            for value in values:
+                tier = value[0]
+                if tier not in seen:
+                    seen.add(tier)
+                    if len(value) > 1:
+                        tiered.append(tier)
+                tiered.append(value)
+            values = tiered
+        options[key] = values
+    return defs, options
+
+
 async def get_public_update(db: AsyncSession, update_id: int) -> Optional[dict[str, Any]]:
     stmt = (
         select(AdmissionUpdates, Schools)
@@ -196,6 +265,8 @@ async def list_public_sitemap_updates(db: AsyncSession) -> list[dict[str, Any]]:
 def _admin_detail(update: AdmissionUpdates, school: Schools, candidate_ids: list[int]) -> dict[str, Any]:
     return {
         **_public_detail(update, school),
+        # 编辑器学校下拉绑定 school_id；候选生成的草稿学校已关联且不可改，需随详情返回用于回显与保存校验
+        "school_id": update.school_id,
         "status": update.status,
         "deleted_reason": update.deleted_reason,
         "created_by": update.created_by,
@@ -231,10 +302,25 @@ async def list_admin_updates(
     page_size: int = 20,
     status: str = "",
     keyword: str = "",
+    change_kind: str = "",
+    school_id: Optional[int] = None,
+    district: str = "",
+    stage: str = "",
 ) -> dict[str, Any]:
     conditions: list[Any] = []
     if status:
         conditions.append(AdmissionUpdates.status == status)
+    else:
+        # 默认列表不含已删除记录；查看已删除需显式选择状态筛选
+        conditions.append(AdmissionUpdates.status != "deleted")
+    if change_kind:
+        conditions.append(AdmissionUpdates.change_kind == change_kind)
+    if school_id is not None:
+        conditions.append(AdmissionUpdates.school_id == school_id)
+    if district:
+        conditions.append(Schools.district == district)
+    if stage:
+        conditions.append(Schools.stage == stage)
     keyword = keyword.strip()
     if keyword:
         escaped = _escape_like(keyword)
@@ -280,16 +366,39 @@ async def list_candidates(
     status: str = "pending",
     school_id: Optional[int] = None,
     detected_on: Optional[date] = None,
+    change_type: str = "",
+    district: str = "",
+    stage: str = "",
 ) -> dict[str, Any]:
     conditions: list[Any] = []
     if status == "pending":
         conditions.append(col(AdmissionChangeReviews.change_id).is_(None))
+        # 与已采用变化同键（同校同 URL 同类型同新值）的重复上报不再出现在待处理；
+        # 原始记录仍可在"全部"视图查看并手动忽略
+        adopted = aliased(AdmissionChanges)
+        duplicate_of_adopted = (
+            select(adopted.id)
+            .join(AdmissionChangeReviews, col(AdmissionChangeReviews.change_id) == col(adopted.id))
+            .where(
+                adopted.school_id == AdmissionChanges.school_id,
+                adopted.url == AdmissionChanges.url,
+                adopted.change_type == AdmissionChanges.change_type,
+                func.coalesce(adopted.new_value, "") == func.coalesce(AdmissionChanges.new_value, ""),
+            )
+        )
+        conditions.append(~duplicate_of_adopted.exists())
     elif status in ("adopted", "ignored"):
         conditions.append(AdmissionChangeReviews.status == status)
     if school_id is not None:
         conditions.append(AdmissionChanges.school_id == school_id)
     if detected_on is not None:
         conditions.append(func.date(AdmissionChanges.detected_at) == detected_on)
+    if change_type:
+        conditions.append(AdmissionChanges.change_type == change_type)
+    if district:
+        conditions.append(Schools.district == district)
+    if stage:
+        conditions.append(Schools.stage == stage)
 
     join_condition = col(AdmissionChangeReviews.change_id) == col(AdmissionChanges.id)
     count_stmt = (
@@ -333,17 +442,23 @@ async def list_candidates(
     return {"items": items, "page": page, "page_size": page_size, "total": total, "pages": pages}
 
 
+async def list_school_districts(db: AsyncSession) -> list[str]:
+    """地区筛选选项：schools 表 distinct 非空地区，与名录数据保持一致。"""
+    stmt = (
+        select(Schools.district)
+        .where(col(Schools.district).is_not(None), Schools.district != "")
+        .distinct()
+        .order_by(col(Schools.district))
+    )
+    return [district for district in (await db.exec(stmt)).all() if district]
+
+
 def _apply_content(update: AdmissionUpdates, payload: AdmissionUpdateContent) -> None:
     update.change_kind = payload.change_kind
     update.title = payload.title
     update.summary = payload.summary
-    update.scope_text = payload.scope_text
-    update.change_detail = payload.change_detail
-    update.action_text = payload.action_text
     update.sources_json = payload.sources_for_storage()
-    update.official_published_on = payload.official_published_on
     update.verified_at = _normalize_datetime(payload.verified_at)
-    update.correction_note = payload.correction_note
 
 
 async def create_update(db: AsyncSession, payload: AdmissionUpdateCreate, user_id: int) -> dict[str, Any]:
@@ -376,8 +491,12 @@ async def create_update(db: AsyncSession, payload: AdmissionUpdateCreate, user_i
         updated_at=now,
     )
     _apply_content(update, payload)
-    if change is not None and not update.sources_json:
-        update.sources_json = [{"name": "学校申请页面", "url": change.url, "support": ""}]
+    if change is not None:
+        if not update.title:
+            phrase = CANDIDATE_TITLE_PHRASES.get(change.change_type, "申请页面更新")
+            update.title = f"{school.name}{phrase}"[:120]
+        if not update.sources_json:
+            update.sources_json = [{"name": "学校申请页面", "url": change.url, "support": ""}]
 
     try:
         db.add(update)
@@ -392,6 +511,33 @@ async def create_update(db: AsyncSession, payload: AdmissionUpdateCreate, user_i
                     reviewed_at=now,
                 )
             )
+            # 同键（同校同 URL 同类型同新值）的重复检测记录一并关联到本草稿，待处理池不再重复出现
+            duplicates = (
+                await db.exec(
+                    select(AdmissionChanges)
+                    .outerjoin(
+                        AdmissionChangeReviews, col(AdmissionChangeReviews.change_id) == col(AdmissionChanges.id)
+                    )
+                    .where(
+                        AdmissionChanges.id != change.id,
+                        AdmissionChanges.school_id == change.school_id,
+                        AdmissionChanges.url == change.url,
+                        AdmissionChanges.change_type == change.change_type,
+                        func.coalesce(AdmissionChanges.new_value, "") == func.coalesce(change.new_value or "", ""),
+                        col(AdmissionChangeReviews.change_id).is_(None),
+                    )
+                )
+            ).all()
+            for duplicate in duplicates:
+                db.add(
+                    AdmissionChangeReviews(
+                        change_id=duplicate.id,
+                        status="adopted",
+                        update_id=update.id,
+                        reviewed_by=user_id,
+                        reviewed_at=now,
+                    )
+                )
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -443,13 +589,8 @@ async def publish_update(db: AsyncSession, update_id: int, user_id: int) -> dict
             "change_kind": update.change_kind,
             "title": update.title,
             "summary": update.summary,
-            "scope_text": update.scope_text,
-            "change_detail": update.change_detail,
-            "action_text": update.action_text,
             "sources": update.sources_json,
-            "official_published_on": update.official_published_on,
             "verified_at": update.verified_at,
-            "correction_note": update.correction_note,
         }
     )
     errors = payload.publish_errors()
@@ -474,8 +615,17 @@ async def delete_update(db: AsyncSession, update_id: int, reason: str, user_id: 
     if update is None:
         raise HTTPException(status_code=404, detail="快讯不存在")
     if update.status != "deleted":
+        if update.status == "published" and not reason:
+            raise HTTPException(status_code=422, detail="已发布快讯删除需填写原因")
         update.status = "deleted"
-        update.deleted_reason = reason
+        update.deleted_reason = reason or None
+        if update.first_published_at is None:
+            # 从未发布的草稿：删除即放弃本次编辑，释放候选关联，候选恢复待处理可重新生成
+            reviews = (
+                await db.exec(select(AdmissionChangeReviews).where(AdmissionChangeReviews.update_id == update_id))
+            ).all()
+            for review in reviews:
+                await db.delete(review)
         update.updated_by = user_id
         update.updated_at = hk_now()
         try:

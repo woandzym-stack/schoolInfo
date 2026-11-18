@@ -22,9 +22,14 @@ async def list_updates(
     page_size: int = Query(default=20, ge=1, le=100),
     status: str = Query(default="", pattern="^(|draft|published|deleted)$"),
     keyword: str = Query(default="", max_length=100),
+    change_kind: str = Query(default="", max_length=30),
+    school_id: Optional[int] = None,
+    district: str = Query(default="", max_length=50),
+    stage: str = Query(default="", pattern="^(|primary|secondary)$"),
 ) -> SingleResponse:
     data = await admission_update_service.list_admin_updates(
-        db, page=page, page_size=page_size, status=status, keyword=keyword
+        db, page=page, page_size=page_size, status=status, keyword=keyword,
+        change_kind=change_kind, school_id=school_id, district=district, stage=stage,
     )
     return SingleResponse(data=data)
 
@@ -94,6 +99,9 @@ async def list_candidates(
     status: str = Query(default="pending", pattern="^(pending|adopted|ignored|all)$"),
     school_id: Optional[int] = None,
     detected_on: Optional[date] = None,
+    change_type: str = Query(default="", max_length=20),
+    district: str = Query(default="", max_length=50),
+    stage: str = Query(default="", pattern="^(|primary|secondary)$"),
 ) -> SingleResponse:
     data = await admission_update_service.list_candidates(
         db,
@@ -102,8 +110,19 @@ async def list_candidates(
         status=status,
         school_id=school_id,
         detected_on=detected_on,
+        change_type=change_type,
+        district=district,
+        stage=stage,
     )
     return SingleResponse(data=data)
+
+
+@router.get("/school-districts", response_model=SingleResponse, summary="学校地区筛选项")
+async def list_school_districts(
+    _: Annotated[Users, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
+) -> SingleResponse:
+    return SingleResponse(data=await admission_update_service.list_school_districts(db))
 
 
 @router.post("/admission-changes/{change_id}/ignore", response_model=SingleResponse, summary="忽略候选")

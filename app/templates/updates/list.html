@@ -2,40 +2,46 @@
 {% block content %}
 <main class="page-main">
   <div class="container">
-    <nav class="breadcrumbs" aria-label="麵包屑"><a href="/">首頁</a><span>/</span><span>申請快訊</span></nav>
+    <nav class="breadcrumbs" aria-label="面包屑"><a href="/">首页</a><span>/</span><span>申请快讯</span></nav>
     <div class="section-heading">
       <div class="section-kicker">VERIFIED CHANGES</div>
-      <h1>申請快訊</h1>
-      <p>了解學校插班申請的具體變化、適用對象與下一步。按本站首次發布時間排序，不等同目前可申請名單。</p>
+      <h1>申请快讯</h1>
+      <p>了解学校插班申请的具体变化与官方依据。按本站首次发布时间排序，不等同目前可申请名单。</p>
+    </div>
+    <div class="stage-tabs" role="tablist" aria-label="学段">
+      <a role="tab" href="/updates" class="stage-tab {% if stage != 'primary' %}active{% endif %}" aria-selected="{{ 'true' if stage != 'primary' else 'false' }}">中学</a>
+      <a role="tab" href="/updates?stage=primary" class="stage-tab {% if stage == 'primary' %}active{% endif %}" aria-selected="{{ 'true' if stage == 'primary' else 'false' }}">小学</a>
     </div>
     <form class="filter-panel" method="get" action="/updates">
+      {% if stage %}<input type="hidden" name="stage" value="{{ stage }}">{% endif %}
       <div class="filter-grid">
-        <div class="field"><label for="keyword">學校名稱</label><input id="keyword" name="keyword" type="search" maxlength="100" value="{{ keyword }}" placeholder="輸入繁體或簡體校名"></div>
-        <div class="field"><label for="stage">學段</label><select id="stage" name="stage"><option value="">全部</option><option value="secondary" {% if stage == 'secondary' %}selected{% endif %}>中學</option><option value="primary" {% if stage == 'primary' %}selected{% endif %}>小學</option></select></div>
-        <div class="field"><label for="change_kind">變化類型</label><select id="change_kind" name="change_kind"><option value="">全部類型</option>{% for value, label in kind_labels.items() %}<option value="{{ value }}" {% if change_kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="keyword">学校名称</label><input id="keyword" name="keyword" type="search" maxlength="100" value="{{ keyword }}" placeholder="输入简体或繁体校名" onchange="this.form.submit()"></div>
+        {% for f in filter_defs %}
+        <div class="field"><label for="{{ f.key }}">{{ f.label }}</label><select id="{{ f.key }}" name="{{ f.key }}" onchange="this.form.submit()"><option value="">全部</option>{% for opt in filter_options[f.key] %}<option value="{{ opt }}" {% if filters[f.key] == opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+        {% endfor %}
+        <div class="field filter-clear"><a class="btn ghost" href="{{ '/updates?stage=' + stage if stage else '/updates' }}">清除条件</a><noscript><button class="btn primary" type="submit">查看结果</button></noscript></div>
       </div>
-      <div class="filter-actions"><button class="btn primary" type="submit">查看結果</button><a class="btn ghost" href="/updates">清除條件</a></div>
     </form>
-    <div class="results-meta"><span>共 {{ data.total }} 條公開快訊</span><span>每頁 20 條 · 首次發布時間倒序</span></div>
+    <div class="results-meta"><span>共 {{ data.total }} 条公开快讯</span><span>每页 20 条 · 首次发布时间倒序</span></div>
     {% if data['items'] %}
     <div class="update-list">
       {% for item in data['items'] %}
       <article class="update-card">
-        <div class="card-topline"><div class="card-flags"><span class="badge seal">{{ item.change_kind_label }}</span>{% if item.has_correction %}<span class="badge amber">已更正</span>{% endif %}</div><span class="card-date">{{ item.first_published_at|hk_datetime }} 首次發布</span></div>
+        <div class="card-topline"><div class="card-flags"><span class="badge seal">{{ item.change_kind_label }}</span></div><span class="card-date">{{ item.first_published_at|hk_datetime }} 首次发布</span></div>
         <h2><a href="/updates/{{ item.id }}">{{ item.title }}</a></h2>
         <p>{{ item.summary }}</p>
-        <div class="card-school"><strong>{{ item.school.name }}{% if item.school.district %} · {{ item.school.district }}{% endif %}</strong><a href="/updates/{{ item.id }}">閱讀詳情 →</a></div>
+        <div class="card-school"><strong>{{ item.school.name }}{% if item.school.district %} · {{ item.school.district }}{% endif %}</strong><a href="/updates/{{ item.id }}">阅读详情 →</a></div>
       </article>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty">{% if keyword or stage or change_kind %}沒有符合條件的公開快訊，請嘗試清除篩選條件。{% else %}暫無已核實的公開快訊。{% endif %}</div>
+    <div class="empty">{% if filtered %}没有符合条件的公开快讯，请尝试清除筛选条件。{% else %}暂无已核实的公开快讯。{% endif %}</div>
     {% endif %}
     {% if data.pages > 1 %}
-    <nav class="pagination" aria-label="分頁">
-      {% if data.page > 1 %}<a class="page-link" href="{{ update_page_url(data.page - 1, keyword, stage, change_kind) }}">上一頁</a>{% else %}<span class="page-link disabled">上一頁</span>{% endif %}
-      {% for number in page_numbers %}<a class="page-link {% if number == data.page %}active{% endif %}" href="{{ update_page_url(number, keyword, stage, change_kind) }}">{{ number }}</a>{% endfor %}
-      {% if data.page < data.pages %}<a class="page-link" href="{{ update_page_url(data.page + 1, keyword, stage, change_kind) }}">下一頁</a>{% else %}<span class="page-link disabled">下一頁</span>{% endif %}
+    <nav class="pagination" aria-label="分页">
+      {% if data.page > 1 %}<a class="page-link" href="{{ update_page_url(data.page - 1, keyword, stage, filters) }}">上一页</a>{% else %}<span class="page-link disabled">上一页</span>{% endif %}
+      {% for number in page_numbers %}<a class="page-link {% if number == data.page %}active{% endif %}" href="{{ update_page_url(number, keyword, stage, filters) }}">{{ number }}</a>{% endfor %}
+      {% if data.page < data.pages %}<a class="page-link" href="{{ update_page_url(data.page + 1, keyword, stage, filters) }}">下一页</a>{% else %}<span class="page-link disabled">下一页</span>{% endif %}
     </nav>
     {% endif %}
   </div>
