@@ -88,7 +88,7 @@
           <div><label class="field-label">学校 *</label><el-select v-model="editor.school_id" :disabled="!!editor.id || editor.status === 'deleted'" filterable remote reserve-keyword :remote-method="searchSchools" :loading="schoolSearching" placeholder="输入校名搜索" style="width:100%"><el-option v-for="school in schoolOptions" :key="school.id" :label="school.name" :value="school.id"></el-option></el-select></div>
           <div><label class="field-label">变化类型 *</label><el-select v-model="editor.change_kind" :disabled="readOnly" style="width:100%"><el-option v-for="kind in kinds" :key="kind.value" :label="kind.label" :value="kind.value"></el-option></el-select></div>
           <div class="wide"><label class="field-label">标题 *</label><el-input v-model="editor.title" :disabled="readOnly" maxlength="120" show-word-limit placeholder="学校＋具体变化"></el-input></div>
-          <div class="wide"><label class="field-label">一句话重点 *</label><el-input v-model="editor.summary" :disabled="readOnly" type="textarea" :rows="2" maxlength="300" show-word-limit></el-input></div>
+          <div class="wide"><label class="field-label">一句话重点 *</label><el-input v-model="editor.summary" :disabled="readOnly" type="textarea" :rows="2" maxlength="300" show-word-limit @input="onSummaryInput"></el-input></div>
         </div></section>
 
         <section class="form-section"><h2>官方来源与时间</h2><p class="section-help">至少一个 HTTP(S) 来源，需填写来源名称，对应信息可空。候选只预填 URL 与默认来源名称。</p>
@@ -115,12 +115,12 @@ createApp({
     const auth = SchoolAuth.state;
     const state = reactive({
       activeTab: 'candidates', permissionError: '', candidates: [], candidateTotal: 0, candidatePage: 1, candidateLoading: false,
-      candidateFilters: { status: 'pending', detected_on: '', change_type: '', school_id: null, district: '', stage: '' }, generatingId: null,
+      candidateFilters: { status: 'pending', detected_on: '', change_type: 'added', school_id: null, district: '', stage: '' }, generatingId: null,
       candidateSchoolOptions: [], candidateSchoolSearching: false,
       updates: [], updateTotal: 0, updatePage: 1, updateLoading: false, updateFilters: { status: '', keyword: '', change_kind: '', school_id: null, district: '', stage: '' },
       filterSchoolOptions: [], filterSchoolSearching: false, districts: [],
       editorVisible: false, saving: false, editor: blankEditor(), editorCandidate: null, editorReady: false, dirty: false,
-      previewMode: 'card', schoolOptions: [], schoolSearching: false,
+      previewMode: 'card', schoolOptions: [], schoolSearching: false, summaryTouched: false,
     });
     const kinds = [
       { value: 'announcement', label: '安排公布' }, { value: 'opened', label: '开放申请' },
@@ -134,13 +134,18 @@ createApp({
       { value: 'content_changed', label: '内容变化' },
     ];
     function blankEditor() {
-      return { id: null, school_id: null, status: 'draft', deleted_reason: null, change_kind: 'other', title: '', summary: '', sources: [], verified_at: null, candidate_ids: [] };
+      return { id: null, school_id: null, status: 'draft', deleted_reason: null, change_kind: 'other', title: '', summary: '', sources: [], verified_at: nowHK(), candidate_ids: [] };
     }
     const readOnly = computed(() => state.editor.status === 'deleted');
     function kindLabel(value) { return (kinds.find(k => k.value === value) || {}).label || value || '其他变化'; }
     function statusLabel(value) { return ({ pending: '待处理', adopted: '已采用', ignored: '已忽略', draft: '草稿', published: '已发布', deleted: '已删除' })[value] || value; }
     function fmt(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : '—'; }
     function todayHK() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+    function nowHK() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 19); }
+    // 一句话重点默认跟随标题："标题，具体看链接"；编辑手动改过摘要后不再覆盖，清空摘要恢复跟随
+    function autoSummary() { return state.editor.title ? `${state.editor.title}，具体看链接` : ''; }
+    function onSummaryInput() { state.summaryTouched = !!state.editor.summary; }
+    watch(() => state.editor.title, () => { if (!state.summaryTouched) state.editor.summary = autoSummary(); });
     function showToday() { state.candidateFilters.detected_on = todayHK(); state.candidatePage = 1; loadCandidates(); }
     function clearCandidateDate() { state.candidateFilters.detected_on = ''; state.candidatePage = 1; loadCandidates(); }
     function errorMessage(error) { if (error.status === 403) state.permissionError = error.message; else ElementPlus.ElMessage.error(error.message); }
@@ -192,6 +197,10 @@ createApp({
     function setEditor(data) {
       state.editorReady = false;
       state.editor = Object.assign(blankEditor(), data, { sources: (data.sources || []).map(s => ({ name: s.name, url: s.url, support: s.support })) });
+      // 已有且非自动模板的摘要视为已定稿，不跟随标题；空摘要立即按标题生成
+      state.summaryTouched = !!data.summary && data.summary !== `${data.title}，具体看链接`;
+      if (!state.summaryTouched) state.editor.summary = autoSummary();
+      if (!state.editor.verified_at) state.editor.verified_at = nowHK();
       state.schoolOptions = data.school ? [data.school] : [];
       state.previewMode = 'card'; state.dirty = false;
       nextTick(() => { state.editorReady = true; });
