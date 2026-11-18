@@ -1,4 +1,4 @@
-"""申请快讯与抓取候选的轻量业务流：候选生成草稿，人工编辑后发布。"""
+"""插班动态与抓取候选的轻量业务流：候选生成草稿，人工编辑后发布。"""
 from datetime import date, datetime, timedelta, timezone
 from math import ceil
 from typing import Any, Optional
@@ -17,7 +17,7 @@ from app.models.schools import Schools
 from app.schemas.admission_update import AdmissionUpdateContent, AdmissionUpdateCreate
 
 HK_TZ = timezone(timedelta(hours=8))
-# 公开快讯页学校筛选维度：与学校名录一致，按学段联动（全部学段仅公共维度）
+# 公开动态页学校筛选维度：与学校名录一致，按学段联动（全部学段仅公共维度）
 PUBLIC_FILTER_LABELS = {
     "district": "地区",
     "type": "学校类型",
@@ -208,7 +208,7 @@ async def list_public_updates(
 async def list_public_filter_options(
     db: AsyncSession, stage: str = ""
 ) -> tuple[list[dict[str, str]], dict[str, list[str]]]:
-    """快讯页学校筛选字段与选项：与名录同源按学段 distinct；校网排除 '0' 按编号排序，组别插入整档。"""
+    """动态页学校筛选字段与选项：与名录同源按学段 distinct；校网排除 '0' 按编号排序，组别插入整档。"""
     keys = PUBLIC_FILTER_KEYS.get(stage, PUBLIC_FILTER_KEYS[""])
     defs = [{"key": key, "label": PUBLIC_FILTER_LABELS[key]} for key in keys]
     options: dict[str, list[str]] = {}
@@ -285,7 +285,7 @@ async def get_admin_update(db: AsyncSession, update_id: int) -> dict[str, Any]:
     )
     row = (await db.exec(stmt)).first()
     if row is None:
-        raise HTTPException(status_code=404, detail="快讯不存在")
+        raise HTTPException(status_code=404, detail="动态不存在")
     candidate_ids = list(
         (
             await db.exec(
@@ -555,9 +555,9 @@ async def update_content(
 ) -> dict[str, Any]:
     update = await _update_or_none(db, update_id)
     if update is None:
-        raise HTTPException(status_code=404, detail="快讯不存在")
+        raise HTTPException(status_code=404, detail="动态不存在")
     if update.status == "deleted":
-        raise HTTPException(status_code=409, detail="已删除快讯不能直接编辑，请先恢复为草稿")
+        raise HTTPException(status_code=409, detail="已删除动态不能直接编辑，请先恢复为草稿")
     if update.status == "published":
         errors = payload.publish_errors()
         if errors:
@@ -579,9 +579,9 @@ async def update_content(
 async def publish_update(db: AsyncSession, update_id: int, user_id: int) -> dict[str, Any]:
     update = await _update_or_none(db, update_id)
     if update is None:
-        raise HTTPException(status_code=404, detail="快讯不存在")
+        raise HTTPException(status_code=404, detail="动态不存在")
     if update.status == "deleted":
-        raise HTTPException(status_code=409, detail="已删除快讯不能发布，请先恢复为草稿")
+        raise HTTPException(status_code=409, detail="已删除动态不能发布，请先恢复为草稿")
     if update.status == "published":
         return await get_admin_update(db, update.id)
     payload = AdmissionUpdateContent.model_validate(
@@ -613,10 +613,10 @@ async def publish_update(db: AsyncSession, update_id: int, user_id: int) -> dict
 async def delete_update(db: AsyncSession, update_id: int, reason: str, user_id: int) -> dict[str, Any]:
     update = await _update_or_none(db, update_id)
     if update is None:
-        raise HTTPException(status_code=404, detail="快讯不存在")
+        raise HTTPException(status_code=404, detail="动态不存在")
     if update.status != "deleted":
         if update.status == "published" and not reason:
-            raise HTTPException(status_code=422, detail="已发布快讯删除需填写原因")
+            raise HTTPException(status_code=422, detail="已发布动态删除需填写原因")
         update.status = "deleted"
         update.deleted_reason = reason or None
         if update.first_published_at is None:
@@ -639,7 +639,7 @@ async def delete_update(db: AsyncSession, update_id: int, reason: str, user_id: 
 async def restore_update(db: AsyncSession, update_id: int, user_id: int) -> dict[str, Any]:
     update = await _update_or_none(db, update_id)
     if update is None:
-        raise HTTPException(status_code=404, detail="快讯不存在")
+        raise HTTPException(status_code=404, detail="动态不存在")
     if update.status != "deleted":
         return await get_admin_update(db, update.id)
     update.status = "draft"

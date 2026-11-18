@@ -14,7 +14,7 @@ from app.services import admission_update_service
 router = APIRouter()
 
 
-@router.get("/updates", response_model=SingleResponse, summary="管理快讯列表")
+@router.get("/updates", response_model=SingleResponse, summary="管理动态列表")
 async def list_updates(
     _: Annotated[Users, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_async_db)],
@@ -43,7 +43,7 @@ async def create_update(
     return SingleResponse(data=await admission_update_service.create_update(db, payload, user.id))
 
 
-@router.get("/updates/{update_id}", response_model=SingleResponse, summary="管理快讯详情")
+@router.get("/updates/{update_id}", response_model=SingleResponse, summary="管理动态详情")
 async def get_update(
     update_id: int,
     _: Annotated[Users, Depends(get_admin_user)],
@@ -71,7 +71,7 @@ async def publish_update(
     return SingleResponse(data=await admission_update_service.publish_update(db, update_id, user.id))
 
 
-@router.post("/updates/{update_id}/delete", response_model=SingleResponse, summary="软删除快讯")
+@router.post("/updates/{update_id}/delete", response_model=SingleResponse, summary="软删除动态")
 async def delete_update(
     update_id: int,
     payload: AdmissionUpdateDelete,
@@ -81,7 +81,7 @@ async def delete_update(
     return SingleResponse(data=await admission_update_service.delete_update(db, update_id, payload.reason, user.id))
 
 
-@router.post("/updates/{update_id}/restore", response_model=SingleResponse, summary="恢复已删除快讯为草稿")
+@router.post("/updates/{update_id}/restore", response_model=SingleResponse, summary="恢复已删除动态为草稿")
 async def restore_update(
     update_id: int,
     user: Annotated[Users, Depends(get_admin_user)],

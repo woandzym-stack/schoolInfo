@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
-  <meta name="description" content="{{ description or '香港学校插班申请快讯与官方来源。' }}">
+  <meta name="description" content="{{ description or '香港学校插班动态与官方来源。' }}">
   <meta name="robots" content="{{ robots or 'index,follow' }}">
   {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="香港插班">
   <meta property="og:title" content="{{ title }}">
-  <meta property="og:description" content="{{ description or '香港学校插班申请快讯与官方来源。' }}">
+  <meta property="og:description" content="{{ description or '香港学校插班动态与官方来源。' }}">
   {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
   <meta property="og:locale" content="zh_CN">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -22,17 +22,17 @@
   <header class="masthead">
     <div class="container masthead-inner">
       <a class="brand" href="/">
-        <span class="seal">插</span>
-        <span><span class="brand-name">香港插班</span><span class="brand-sub" style="display:block">学校名录 · 申请快讯 · 官方来源</span></span>
+        <span class="brand-seal">插</span>
+        <span><span class="brand-name">香港插班</span><span class="brand-sub" style="display:block">学校名录 · 插班动态 · 官方来源</span></span>
       </a>
       <nav class="site-nav" aria-label="网站导航">
         <a href="/">学校名录</a>
-        <a href="/updates" class="active">申请快讯</a>
+        <a href="/updates" class="active nav-updates">插班动态</a>
         <a href="/ui/subscriptions">我的收藏</a>
       </nav>
     </div>
   </header>
   {% block content %}{% endblock %}
-  <footer class="site-footer"><div class="container">申请安排以学校最新公告为准；本站快讯由人工根据官方来源整理。</div></footer>
+  <footer class="site-footer"><div class="container">申请安排以学校最新公告为准；本站动态由人工根据官方来源整理。</div></footer>
 </body>
 </html>

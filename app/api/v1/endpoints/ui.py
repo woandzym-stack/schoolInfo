@@ -33,7 +33,7 @@ async def serve_subscriptions(request: Request):
     return FileResponse(html_path)
 
 
-@ui_router.get("/admin/updates", summary="申请快讯管理", include_in_schema=False)
+@ui_router.get("/admin/updates", summary="插班动态管理", include_in_schema=False)
 async def serve_update_admin():
     """管理页面只提供静态壳；所有候选和快讯数据均由管理 API 鉴权返回。"""
     base_dir = Path(__file__).resolve().parent.parent.parent.parent

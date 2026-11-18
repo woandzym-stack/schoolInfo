@@ -10,7 +10,7 @@ from app.services import admission_update_service
 router = APIRouter()
 
 
-@router.get("", response_model=SingleResponse, summary="公开申请快讯列表")
+@router.get("", response_model=SingleResponse, summary="公开插班动态列表")
 async def list_updates(
     db: Annotated[AsyncSession, Depends(get_async_db)],
     page: int = Query(default=1, ge=1),
@@ -25,12 +25,12 @@ async def list_updates(
     return SingleResponse(data=data)
 
 
-@router.get("/{update_id}", response_model=SingleResponse, summary="公开申请快讯详情")
+@router.get("/{update_id}", response_model=SingleResponse, summary="公开插班动态详情")
 async def get_update(
     update_id: int,
     db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> SingleResponse:
     data: Optional[dict[str, Any]] = await admission_update_service.get_public_update(db, update_id)
     if data is None:
-        raise HTTPException(status_code=404, detail="快讯不存在或未公开")
+        raise HTTPException(status_code=404, detail="动态不存在或未公开")
     return SingleResponse(data=data)

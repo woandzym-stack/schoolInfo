@@ -94,7 +94,7 @@ def test_public_templates_escape_editor_content():
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in detail_html
     assert "<img src=x onerror=alert(1)>" not in detail_html
     list_html = templates.get_template("updates/list.html").render(
-        title="申请快讯",
+        title="插班动态",
         description="摘要",
         canonical="https://school.ddup.app/updates",
         robots="index,follow",
@@ -129,7 +129,7 @@ def test_public_html_404_and_json_404(client, monkeypatch):
     html_response = client.get("/updates/999999")
     assert html_response.status_code == 404
     assert "text/html" in html_response.headers["content-type"]
-    assert "找不到这条快讯" in html_response.text
+    assert "找不到这条动态" in html_response.text
     api_response = client.get("/api/v1/updates/999999")
     assert api_response.status_code == 404
     assert api_response.json()["errCode"] == 404

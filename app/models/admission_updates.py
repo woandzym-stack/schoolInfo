@@ -6,7 +6,7 @@ from sqlmodel import Field, SQLModel
 
 
 class AdmissionUpdates(SQLModel, table=True):
-    """人工编辑的申请快讯；每条记录只保存一份当前内容。"""
+    """人工编辑的插班动态；每条记录只保存一份当前内容。"""
 
     __tablename__ = "admission_updates"
 
@@ -17,7 +17,7 @@ class AdmissionUpdates(SQLModel, table=True):
     change_kind: str = Field(default="other", sa_column=Column("change_kind", String(30), nullable=False))
     title: str = Field(default="", sa_column=Column("title", String(120), nullable=False))
     summary: str = Field(default="", sa_column=Column("summary", String(300), nullable=False))
-    # 以下字段已随快讯内容简化而废弃：不再读写，保留列以兼容现有表（非空约束），后续迁移再删列
+    # 以下字段已随动态内容简化而废弃：不再读写，保留列以兼容现有表（非空约束），后续迁移再删列
     scope_text: str = Field(default="", sa_column=Column("scope_text", String(500), nullable=False))
     change_detail: str = Field(default="", sa_column=Column("change_detail", Text, nullable=False))
     action_text: str = Field(default="", sa_column=Column("action_text", Text, nullable=False))

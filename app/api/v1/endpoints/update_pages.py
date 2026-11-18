@@ -17,8 +17,8 @@ def _not_found(request: Request) -> HTMLResponse:
         request=request,
         name="updates/404.html",
         context={
-            "title": "快讯不存在｜香港插班",
-            "description": "快讯不存在或尚未公开。",
+            "title": "动态不存在｜香港插班",
+            "description": "动态不存在或尚未公开。",
             "canonical": None,
             "robots": "noindex",
         },
@@ -86,7 +86,7 @@ async def updates_page(
         request=request,
         name="updates/list.html",
         context={
-            "title": "申请快讯｜香港插班",
+            "title": "插班动态｜香港插班",
             "description": "了解香港学校插班申请的具体变化与官方来源。",
             "canonical": canonical,
             "robots": robots,

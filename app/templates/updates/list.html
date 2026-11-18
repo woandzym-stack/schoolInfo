@@ -2,12 +2,7 @@
 {% block content %}
 <main class="page-main">
   <div class="container">
-    <nav class="breadcrumbs" aria-label="面包屑"><a href="/">首页</a><span>/</span><span>申请快讯</span></nav>
-    <div class="section-heading">
-      <div class="section-kicker">VERIFIED CHANGES</div>
-      <h1>申请快讯</h1>
-      <p>了解学校插班申请的具体变化与官方依据。按本站首次发布时间排序，不等同目前可申请名单。</p>
-    </div>
+    <nav class="breadcrumbs" aria-label="面包屑"><a href="/">首页</a><span>/</span><span>插班动态</span></nav>
     <div class="stage-tabs" role="tablist" aria-label="学段">
       <a role="tab" href="/updates" class="stage-tab {% if stage != 'primary' %}active{% endif %}" aria-selected="{{ 'true' if stage != 'primary' else 'false' }}">中学</a>
       <a role="tab" href="/updates?stage=primary" class="stage-tab {% if stage == 'primary' %}active{% endif %}" aria-selected="{{ 'true' if stage == 'primary' else 'false' }}">小学</a>
@@ -22,20 +17,20 @@
         <div class="field filter-clear"><a class="btn ghost" href="{{ '/updates?stage=' + stage if stage else '/updates' }}">清除条件</a><noscript><button class="btn primary" type="submit">查看结果</button></noscript></div>
       </div>
     </form>
-    <div class="results-meta"><span>共 {{ data.total }} 条公开快讯</span><span>每页 20 条 · 首次发布时间倒序</span></div>
+    <div class="results-meta"><span>共 {{ data.total }} 条公开动态</span><span>首次发布时间倒序 · 历史动态不代表目前可申请</span></div>
     {% if data['items'] %}
     <div class="update-list">
       {% for item in data['items'] %}
       <article class="update-card">
-        <div class="card-topline"><div class="card-flags"><span class="badge seal">{{ item.change_kind_label }}</span></div><span class="card-date">{{ item.first_published_at|hk_datetime }} 首次发布</span></div>
+        <div class="card-school-line"><strong>{{ item.school.name }}</strong>{% if item.school.district %} · {{ item.school.district }}{% endif %}</div>
         <h2><a href="/updates/{{ item.id }}">{{ item.title }}</a></h2>
-        <p>{{ item.summary }}</p>
-        <div class="card-school"><strong>{{ item.school.name }}{% if item.school.district %} · {{ item.school.district }}{% endif %}</strong><a href="/updates/{{ item.id }}">阅读详情 →</a></div>
+        {% if item.summary and item.summary != item.title + '，具体看链接' %}<p>{{ item.summary }}</p>{% endif %}
+        <div class="card-foot"><span class="badge badge-change">{{ item.change_kind_label }}</span><span class="card-date">{{ item.first_published_at|hk_datetime }} 首次发布</span><a class="card-more" href="/updates/{{ item.id }}">阅读详情 →</a></div>
       </article>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty">{% if filtered %}没有符合条件的公开快讯，请尝试清除筛选条件。{% else %}暂无已核实的公开快讯。{% endif %}</div>
+    <div class="empty">{% if filtered %}没有符合条件的公开动态，请尝试清除筛选条件。{% else %}暂无已核实的公开动态。{% endif %}</div>
     {% endif %}
     {% if data.pages > 1 %}
     <nav class="pagination" aria-label="分页">

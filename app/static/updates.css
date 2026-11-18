@@ -12,6 +12,7 @@
   --amber-soft: #fff4dc;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Microsoft YaHei", sans-serif; line-height: 1.65; }
 a { color: var(--seal); text-underline-offset: 3px; }
 a:hover { color: var(--seal-dark); }
@@ -21,20 +22,19 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
 .masthead { background: var(--card); border-bottom: 1px solid var(--hairline); }
 .masthead-inner { min-height: 96px; display: flex; align-items: center; gap: 16px; padding-block: 20px; }
 .brand { display: flex; align-items: center; gap: 14px; color: var(--ink); text-decoration: none; }
-.seal { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 6px; background: var(--seal); color: #fff7f0; font: 700 27px "Noto Serif TC", serif; transform: rotate(-3deg); }
+.brand-seal { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 6px; background: var(--seal); color: #fff7f0; font: 700 27px "Noto Serif TC", serif; transform: rotate(-3deg); }
 .brand-name { font: 700 26px "Noto Serif TC", serif; letter-spacing: .08em; }
 .brand-sub { color: var(--slate); font-size: 12px; }
 .site-nav { display: flex; gap: 20px; margin-left: auto; }
 .site-nav a { padding: 7px 0 5px; border-bottom: 2px solid transparent; color: var(--slate); font-size: 13px; font-weight: 600; text-decoration: none; }
 .site-nav a:hover, .site-nav a.active { color: var(--ink); border-bottom-color: var(--seal); }
-.page-main { padding-block: 34px 54px; }
+/* 插班动态：站点亮点入口，印章红徽章；激活时不再叠加下划线 */
+.site-nav a.nav-updates { padding: 6px 12px; border-bottom: none; border-radius: 5px; background: var(--seal); color: #fff7f0; }
+.site-nav a.nav-updates:hover, .site-nav a.nav-updates.active { background: var(--seal-dark); color: #fff7f0; }
+.page-main { padding-block: 26px 44px; }
 .page-main.white { background: var(--card); }
-.breadcrumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; color: var(--slate); font-size: 12px; }
+.breadcrumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; color: var(--slate); font-size: 12px; }
 .breadcrumbs a { color: var(--slate); text-decoration: none; }
-.section-heading { margin-bottom: 22px; }
-.section-kicker { margin-bottom: 6px; color: var(--seal); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
-.section-heading h1 { font-size: clamp(28px, 4vw, 38px); }
-.section-heading p { max-width: 720px; margin-top: 9px; color: var(--slate); font-size: 14px; }
 .stage-tabs { display: flex; gap: 28px; margin-bottom: 20px; border-bottom: 1px solid var(--hairline); }
 .stage-tab { position: relative; padding: 10px 2px 12px; color: var(--slate); font-size: 15px; font-weight: 600; text-decoration: none; letter-spacing: .04em; transition: color .15s ease; }
 .stage-tab:hover { color: var(--ink); }
@@ -53,12 +53,11 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
 .btn.ghost { border-color: transparent; background: transparent; color: var(--slate); }
 .results-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--slate); font-size: 12px; }
 .update-list { display: grid; gap: 12px; }
-.update-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; background: var(--card); border: 1px solid var(--hairline); border-radius: 7px; }
+.update-card { display: flex; flex-direction: column; gap: 10px; padding: 20px; background: var(--card); border: 1px solid var(--hairline); border-radius: 7px; }
 .update-card:hover { border-color: #aebbcd; }
-.card-topline, .card-flags { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.card-topline { justify-content: space-between; }
+.card-flags { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .badge { display: inline-flex; align-items: center; width: fit-content; padding: 2px 9px; border: 1px solid var(--hairline); border-radius: 999px; color: var(--slate); background: var(--paper); font-size: 11px; font-weight: 600; }
-.badge.seal { color: var(--seal); background: #f9ece9; border-color: #e8bbb5; }
+.badge.badge-change { color: var(--seal); background: #f9ece9; border-color: #e8bbb5; }
 .badge.jade { color: var(--jade); background: var(--jade-soft); border-color: #b9d8ce; }
 .badge.amber { color: var(--amber); background: var(--amber-soft); border-color: #e7cf9f; }
 .card-date { color: var(--slate); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -66,9 +65,10 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
 .update-card h2 a { color: var(--ink); text-decoration: none; }
 .update-card h2 a:hover { color: var(--seal); }
 .update-card > p { color: var(--slate); font-size: 13px; white-space: pre-line; }
-.card-school { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--hairline); font-size: 12px; }
-.card-school strong { color: var(--ink); }
-.card-school a { font-weight: 600; text-decoration: none; }
+.card-school-line { font-size: 13px; color: var(--slate); }
+.card-school-line strong { color: var(--ink); }
+.card-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--hairline); font-size: 12px; }
+.card-foot .card-more { margin-left: auto; font-weight: 600; text-decoration: none; }
 .empty { padding: 36px 20px; text-align: center; color: var(--slate); background: var(--card); border: 1px dashed #bcc6d4; border-radius: 7px; }
 .pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 28px; }
 .page-link { min-width: 36px; padding: 7px 10px; border: 1px solid var(--hairline); border-radius: 5px; background: var(--card); color: var(--ink); text-align: center; text-decoration: none; }
@@ -98,6 +98,8 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
 .time-row span { color: var(--slate); }
 .time-row strong { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
 .audit-note { padding: 12px 14px; color: var(--slate); background: var(--paper); border-radius: 5px; font-size: 11px; }
+.verified-note { font-size: 11px; color: var(--slate); }
+.detail-footnote { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--hairline); color: var(--slate); font-size: 11px; }
 .site-footer { padding: 22px 0; border-top: 1px solid var(--hairline); color: var(--slate); background: var(--card); font-size: 11px; text-align: center; }
 .error-page { padding: 70px 20px; text-align: center; }
 .error-page h1 { font-size: 32px; }
@@ -111,7 +113,7 @@ h1, h2, h3 { font-family: "Noto Serif TC", "PMingLiU", serif; text-wrap: balance
   .container { width: calc(100% - 28px); }
   .masthead-inner { flex-wrap: wrap; }
   .brand-name { font-size: 22px; }
-  .seal { width: 42px; height: 42px; font-size: 23px; }
+  .brand-seal { width: 42px; height: 42px; font-size: 23px; }
   .site-nav { width: 100%; margin-left: 0; padding-top: 8px; border-top: 1px solid var(--hairline); }
   .page-main { padding-block: 24px 36px; }
   .results-meta { flex-direction: column; gap: 2px; }

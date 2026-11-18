@@ -191,43 +191,27 @@
     color: var(--seal);
     box-shadow: inset 0 0 0 1px rgba(179, 57, 46, .4);
   }
-  .stage-tab {
-    appearance: none;
-    border: none; background: none; cursor: pointer;
+  /* 主导航：下划线式，与动态页导航同一视觉语言 */
+  .main-nav-inner { align-items: stretch; gap: 30px; }
+  .main-nav-link {
+    display: inline-flex; align-items: center;
     padding: 14px 2px 12px;
-    font-family: "Noto Serif TC", serif;
-    font-size: 18px; font-weight: 600;
-    color: var(--slate);
+    font-size: 14px; font-weight: 600;
+    color: var(--ink); text-decoration: none;
     border-bottom: 3px solid transparent;
     margin-bottom: -1px;
     transition: color .15s, border-color .15s;
   }
-  .stage-tab:hover { color: var(--ink); }
-  .stage-tab.active {
-    color: var(--ink);
-    border-bottom-color: var(--seal);
+  .main-nav-link:hover { color: var(--seal); }
+  .main-nav-link.active { border-bottom-color: var(--seal); }
+  .main-nav-link.dynamic { color: var(--seal); gap: 8px; }
+  .main-nav-link.dynamic::before {
+    content: ''; width: 6px; height: 6px;
+    background: var(--seal); border-radius: 50%;
   }
-  .stage-tab .cnt {
-    margin-left: 8px;
-    font-family: "Noto Sans TC", sans-serif;
-    font-size: 12px; font-weight: 500;
-    color: var(--slate);
-    background: var(--paper);
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
-    padding: 1px 8px;
-    vertical-align: 3px;
-  }
-  .stage-tab.active .cnt { color: var(--seal); border-color: rgba(179, 57, 46, .35); background: rgba(179, 57, 46, .06); }
 
-  /* ---------- 筛选栏 ---------- */
-  .filterbar {
-    position: sticky; top: 0; z-index: 20;
-    background: rgba(244, 246, 249, .92);
-    backdrop-filter: blur(6px);
-    padding: 14px 0;
-    border-bottom: 1px solid var(--hairline);
-  }
+  /* ---------- 筛选栏：目录区内，无独立背景条 ---------- */
+  .filterbar { margin-bottom: 14px; }
   .filterbar-inner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .search-box { flex: 1 1 240px; min-width: 200px; }
   .filter-select { width: 128px; }
@@ -401,7 +385,6 @@
     /* 登录后移动端隐藏「联系我们」按钮，页签与账户操作保持单行不折行；
        弹层容器保留在 DOM 中，页脚「联系我们」仍可正常触发弹层 */
     .stagebar-inner.logged-in .stagebar-contact-wrap > .top-contact-link { display: none; }
-    .stage-tab { flex: 1; text-align: center; font-size: 16px; }
     .stagebar-contact { font-size: 13px; }
     .filter-select { width: calc(50% - 5px); }
     .search-box { flex: 1 1 100%; }
@@ -478,15 +461,52 @@
   opacity: .8;
 }
 
-/* 插班资料更新时间：不是“插班状态”，只说明数据新鲜度 */
-.freshness-note {
-  margin: 18px 2px -4px;
-  color: var(--slate);
-  font-size: 12px;
-  line-height: 1.6;
-  text-align: right;
+/* 插班动态紧凑条：左标题、两条最新动态、右侧全部入口 */
+.feature-compact {
+  display: grid; grid-template-columns: 180px minmax(0, 1fr) 100px;
+  align-items: center; gap: 24px;
+  margin: 22px 0 24px; padding: 16px 22px;
+  border: 1px solid #DFCECB; border-left: 3px solid var(--seal);
+  border-radius: 5px; background: var(--card);
 }
-.freshness-note strong { color: var(--ink); font-weight: 600; }
+.feature-compact .brief-intro { padding-right: 20px; border-right: 1px solid #EEE3E1; }
+.feature-compact h2 {
+  margin: 0 0 8px; color: var(--seal);
+  font-family: "Noto Serif TC", serif; font-size: 24px; letter-spacing: 1px;
+}
+.brief-trust { font-size: 11px; color: var(--slate); white-space: nowrap; }
+.brief-feed { min-width: 0; }
+.feature-compact .story {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) 40px;
+  gap: 10px; padding: 7px 0; align-items: center;
+  color: inherit; text-decoration: none;
+}
+.feature-compact .story h3 {
+  margin: 0; font-size: 13px; font-weight: 500; line-height: 1.8;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.feature-compact .story:hover h3 { color: var(--seal); }
+.feature-compact .story time { font-size: 10px; color: #758196; font-variant-numeric: tabular-nums; }
+.feature-compact .tag {
+  padding: 3px 6px; background: #F9EAE7; border-radius: 3px;
+  color: var(--seal); font-size: 10px; white-space: nowrap;
+}
+.brief-more { display: flex; justify-content: flex-end; }
+.brief-more .text-link { color: var(--seal); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+
+/* 查找学校标题行：学段分段控件 + 数据新鲜度 */
+.directory-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.directory-title { display: flex; align-items: center; gap: 21px; flex-wrap: wrap; }
+.directory-title h2 { margin: 0; font-family: "Noto Serif TC", serif; font-size: 21px; letter-spacing: 1px; }
+.stage-seg { display: flex; gap: 4px; background: #E8ECF2; padding: 3px; border-radius: 5px; }
+.stage-seg button {
+  border: 0; border-radius: 3px; padding: 7px 15px;
+  color: var(--slate); background: transparent;
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.stage-seg button.active { color: var(--ink); background: #fff; box-shadow: 0 1px 3px rgba(30, 42, 68, .1); font-weight: 600; }
+.stage-seg small { font-size: 10px; margin-left: 7px; color: #7A879A; }
+.updated { font-size: 11px; color: var(--slate); }
 
 /* 操作区：官网/学校详情降级为轻量文字外链 */
 .site-text-link {
@@ -561,7 +581,15 @@
   .user-trigger::before { width: 20px; height: 20px; }
   /* 用户名过长时省略，防止把「我的订阅/联系我们」挤出屏幕 */
   .user-trigger { max-width: 45vw; overflow: hidden; text-overflow: ellipsis; }
-  .freshness-note { margin: 12px 4px 4px; text-align: left; }
+  .feature-compact { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 10px; padding: 15px; margin: 18px 0 20px; }
+  .feature-compact .brief-intro { border: 0; padding: 0; }
+  .feature-compact h2 { font-size: 22px; margin: 0 0 6px; }
+  .feature-compact .brief-feed { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid #EEE7E5; padding-top: 7px; }
+  .feature-compact .brief-more { grid-column: 2; grid-row: 1; }
+  .feature-compact .story { grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 5px 0; }
+  .feature-compact .story h3 { font-size: 12px; }
+  .feature-compact .story time { display: none; }
+  .directory-head { align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 </style>
 <style id="school-ui-v3-overrides">
@@ -629,7 +657,7 @@
       <div class="seal">插</div>
       <div>
         <h1>香港插班 <span class="dot">·</span> 学校名录</h1>
-        <p class="sub">全港中小学 · 筛选学校，一键直达官网与插班申请入口</p>
+        <p class="sub">查学校、看插班动态，直达官网与申请入口</p>
       </div>
       <div class="stats" v-if="!loading">
         <div class="stat">
@@ -644,22 +672,13 @@
     </div>
   </header>
 
-  <!-- 学段页签：顶层维度，独立于筛选栏 -->
-  <nav class="stagebar">
-    <div class="container stagebar-inner" :class="{ 'logged-in': auth.user }">
-      <button
-        v-for="t in [{key: 'secondary', label: '中学', count: secondaryCount}, {key: 'primary', label: '小学', count: primaryCount}]"
-        :key="t.key"
-        type="button"
-        class="stage-tab"
-        :class="{ active: stage === t.key }"
-        :aria-pressed="stage === t.key"
-        @click="stage = t.key">
-        {{ t.label }}<span class="cnt" v-if="!loading">{{ t.count }}</span>
-      </button>
+  <!-- 主导航：下划线式；插班动态为站点亮点入口，红字加红点 -->
+  <nav class="stagebar main-nav">
+    <div class="container stagebar-inner main-nav-inner" :class="{ 'logged-in': auth.user }">
+      <a class="main-nav-link active" href="/" aria-current="page">学校名录</a>
+      <a class="main-nav-link dynamic" href="/updates" title="查看人工核实的插班动态">插班动态</a>
       <div class="stagebar-auth" v-if="auth.loaded">
-        <a v-if="auth.user && auth.user.is_admin" class="top-nav-link" href="/ui/admin/updates" title="编辑和发布申请快讯">快讯管理</a>
-        <a class="top-nav-link" href="/updates" title="查看人工核实的申请快讯">申请快讯</a>
+        <a v-if="auth.user && auth.user.is_admin" class="top-nav-link" href="/ui/admin/updates" title="编辑和发布插班动态">动态管理</a>
         <a v-if="auth.user" class="top-nav-link" href="/ui/subscriptions" title="查看已收藏的学校">我的收藏</a>
         <div class="stagebar-contact-wrap">
           <button type="button" class="top-nav-link top-contact-link" :aria-expanded="showContact"
@@ -691,31 +710,23 @@
     </div>
   </nav>
 
-  <!-- 筛选栏 -->
-  <div class="filterbar">
-    <div class="container filterbar-inner">
-      <el-input
-        class="search-box"
-        v-model="keyword"
-        placeholder="输入简体或繁体校名…"
-        clearable
-        :prefix-icon="SearchIcon">
-      </el-input>
-      <el-select
-        v-for="f in filterDefs"
-        :key="stage + f.key"
-        class="filter-select"
-        v-model="filters[f.key]"
-        :placeholder="f.label"
-        clearable
-        filterable>
-        <el-option v-for="opt in filterOptions[f.key]" :key="opt" :label="optionLabel(f.key, opt)" :value="opt"></el-option>
-      </el-select>
-      <el-button v-if="hasActiveFilter" class="clear-btn" text @click="clearFilters">清空筛选</el-button>
-    </div>
-  </div>
-
   <main class="container">
+    <!-- 插班动态：最新 2 条人工核实动态；无公开动态或加载失败时整条隐藏，不影响名录 -->
+    <section class="feature-compact" v-if="updates.length" aria-label="插班动态">
+      <div class="brief-intro">
+        <h2>插班动态</h2>
+        <div class="brief-trust">人工核实 · 附官方来源</div>
+      </div>
+      <div class="brief-feed">
+        <a class="story" v-for="u in updates" :key="u.id" :href="'/updates/' + u.id">
+          <span class="tag">{{ u.change_kind_label }}</span>
+          <h3>{{ u.title }}</h3>
+          <time>{{ u.first_published_at ? u.first_published_at.slice(5, 10) : '' }}</time>
+        </a>
+      </div>
+      <div class="brief-more"><a class="text-link" href="/updates">全部动态 →</a></div>
+    </section>
+
     <!-- 错误 -->
     <div class="err-box" v-if="error">
       <el-alert type="error" :closable="false" show-icon
@@ -724,9 +735,47 @@
       </el-alert>
     </div>
 
-    <!-- 插班资料更新时间：说明数据新鲜度，申请前以官网公告为准 -->
-    <div class="freshness-note" v-if="updatedAt" :title="'最近更新：' + updatedAtFull">
-      插班资料最近更新：<strong>{{ updatedAt }}</strong>　申请前请以学校官网为准
+    <!-- 查找学校：学段分段控件与数据新鲜度 -->
+    <div class="directory-head">
+      <div class="directory-title">
+        <h2>查找学校</h2>
+        <div class="stage-seg" aria-label="学校学段">
+          <button
+            v-for="t in [{key: 'secondary', label: '中学', count: secondaryCount}, {key: 'primary', label: '小学', count: primaryCount}]"
+            :key="t.key"
+            type="button"
+            :class="{ active: stage === t.key }"
+            :aria-pressed="stage === t.key"
+            @click="stage = t.key">
+            {{ t.label }}<small v-if="!loading">{{ t.count }}</small>
+          </button>
+        </div>
+      </div>
+      <span class="updated" v-if="updatedAt" :title="'最近更新：' + updatedAtFull">插班资料最近更新：{{ updatedAt }}</span>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filterbar">
+      <div class="filterbar-inner">
+        <el-input
+          class="search-box"
+          v-model="keyword"
+          placeholder="输入简体或繁体校名…"
+          clearable
+          :prefix-icon="SearchIcon">
+        </el-input>
+        <el-select
+          v-for="f in filterDefs"
+          :key="stage + f.key"
+          class="filter-select"
+          v-model="filters[f.key]"
+          :placeholder="f.label"
+          clearable
+          filterable>
+          <el-option v-for="opt in filterOptions[f.key]" :key="opt" :label="optionLabel(f.key, opt)" :value="opt"></el-option>
+        </el-select>
+        <el-button v-if="hasActiveFilter" class="clear-btn" text @click="clearFilters">清空筛选</el-button>
+      </div>
     </div>
 
     <div class="table-card" v-loading="loading" element-loading-text="正在加载学校名录…">
@@ -1115,6 +1164,17 @@
       const linkCount = computed(() =>
         schools.value.reduce((n, s) => n + (s.admission_link_count || 0), 0)
       );
+      // 插班动态条：最新 2 条公开动态（首次发布倒序），失败或无数据时整条隐藏
+      const updates = ref([]);
+      async function loadUpdates() {
+        try {
+          const resp = await fetch('/api/v1/updates?page=1&page_size=2');
+          if (!resp.ok) return;
+          const body = await resp.json();
+          if (body.errCode !== 200 && body.errCode !== 0) return;
+          updates.value = (body.data && body.data.items) || [];
+        } catch (e) { /* 动态条非核心内容，静默降级 */ }
+      }
       const secondaryCount = computed(() => schools.value.filter(s => s.stage === 'secondary').length);
       const primaryCount = computed(() => schools.value.filter(s => s.stage === 'primary').length);
 
@@ -1374,6 +1434,7 @@
       onMounted(async () => {
         mq.addEventListener('change', onMq);
         loadUpdatedAt();
+        loadUpdates();
         try {
           const resp = await fetch('/api/v1/schools');
           if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -1398,7 +1459,7 @@
 
       return {
         schools, loading, error, keyword, stage, filters, filterDefs, filterOptions,
-        sortedList, pagedList, linkCount, secondaryCount, primaryCount,
+        sortedList, pagedList, linkCount, secondaryCount, primaryCount, updates,
         hasActiveFilter, clearFilters,
         currentPage, pageSize, onSortChange, bandClass, netLabel, netOptionLabel, optionLabel,
         gradeLabel, isMobile, SearchIcon, updatedAt, updatedAtFull, year,

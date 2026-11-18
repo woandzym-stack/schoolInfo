@@ -96,7 +96,7 @@ async def get_current_user(
 async def get_admin_user(user: Annotated[Users, Depends(get_current_user)]) -> Users:
     """快讯编辑管理员：复用登录认证，每次请求检查用户名白名单。"""
     if user.username not in settings.admin_username_set:
-        raise HTTPException(status_code=403, detail="没有快讯管理权限")
+        raise HTTPException(status_code=403, detail="没有动态管理权限")
     return user
 
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>申请快讯工作台 · 香港插班</title>
+  <title>插班动态工作台 · 香港插班</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.css">
   <link href="/static/fonts/fonts.css" rel="stylesheet">
@@ -15,19 +15,19 @@
   <header class="admin-top">
     <div class="admin-top-inner">
       <span class="brand-seal">插</span>
-      <div><div class="admin-title">申请快讯工作台</div><div class="admin-sub">抓取候选 → 生成草稿 → 人工核实发布</div></div>
-      <div class="top-actions"><a href="/updates" target="_blank" rel="noopener">公开快讯 ↗</a><a href="/">学校名录</a><span class="admin-user" v-if="auth.user">{{ auth.user.username }}</span></div>
+      <div><div class="admin-title">插班动态工作台</div><div class="admin-sub">抓取候选 → 生成草稿 → 人工核实发布</div></div>
+      <div class="top-actions"><a href="/updates" target="_blank" rel="noopener">公开动态 ↗</a><a href="/">学校名录</a><span class="admin-user" v-if="auth.user">{{ auth.user.username }}</span></div>
     </div>
   </header>
 
   <div v-if="!auth.loaded" class="access-state"><p>正在检查登录状态…</p></div>
-  <div v-else-if="!auth.user" class="access-state"><h1>需要管理员登录</h1><p>登录后还要通过服务端管理员白名单校验，普通用户无法读取候选或编辑快讯。</p><el-button type="primary" @click="SchoolAuth.openDialog('login')">登录</el-button></div>
-  <div v-else-if="permissionError" class="access-state"><h1>没有快讯管理权限</h1><p>{{ permissionError }}。请在 ADMIN_USERNAMES 中配置当前用户名；空配置表示无人有管理权限。</p></div>
+  <div v-else-if="!auth.user" class="access-state"><h1>需要管理员登录</h1><p>登录后还要通过服务端管理员白名单校验，普通用户无法读取候选或编辑动态。</p><el-button type="primary" @click="SchoolAuth.openDialog('login')">登录</el-button></div>
+  <div v-else-if="permissionError" class="access-state"><h1>没有动态管理权限</h1><p>{{ permissionError }}。请在 ADMIN_USERNAMES 中配置当前用户名；空配置表示无人有管理权限。</p></div>
 
   <main v-else class="admin-main">
     <el-tabs v-model="activeTab">
       <el-tab-pane label="抓取候选" name="candidates"></el-tab-pane>
-      <el-tab-pane label="快讯管理" name="updates"></el-tab-pane>
+      <el-tab-pane label="动态管理" name="updates"></el-tab-pane>
     </el-tabs>
 
     <section v-show="activeTab === 'candidates'">
@@ -52,7 +52,7 @@
             <el-button v-if="scope.row.status === 'pending'" size="small" type="primary" :loading="generatingId === scope.row.id" @click="generateDraft(scope.row)">生成草稿</el-button>
             <el-button v-if="scope.row.status === 'pending'" size="small" text @click="ignoreCandidate(scope.row)">忽略</el-button>
             <el-button v-if="scope.row.status === 'ignored'" size="small" @click="restoreCandidate(scope.row)">恢复待处理</el-button>
-            <el-button v-if="scope.row.update_id" size="small" @click="openUpdate(scope.row.update_id)">查看快讯</el-button>
+            <el-button v-if="scope.row.update_id" size="small" @click="openUpdate(scope.row.update_id)">查看动态</el-button>
           </div></template></el-table-column>
           <template #empty><el-empty description="当前筛选下没有候选"></el-empty></template>
         </el-table>
@@ -61,17 +61,17 @@
     </section>
 
     <section v-show="activeTab === 'updates'">
-      <div class="admin-heading"><div><h1>快讯管理</h1><p>单版本保存；已发布内容修改后保存即公开，软删除后公开页面立即不可见。</p></div><el-button type="primary" @click="openManual">手动新建</el-button></div>
+      <div class="admin-heading"><div><h1>动态管理</h1><p>单版本保存；已发布内容修改后保存即公开，软删除后公开页面立即不可见。</p></div><el-button type="primary" @click="openManual">手动新建</el-button></div>
       <div class="work-card">
         <div class="filters"><el-select v-model="updateFilters.status" style="width:130px" @change="updatePage=1;loadUpdates()"><el-option label="全部（不含已删除）" value=""></el-option><el-option label="草稿" value="draft"></el-option><el-option label="已发布" value="published"></el-option><el-option label="已删除" value="deleted"></el-option></el-select><el-select v-model="updateFilters.change_kind" style="width:160px" @change="updatePage=1;loadUpdates()"><el-option label="全部变化类型" value=""></el-option><el-option v-for="kind in kinds" :key="kind.value" :label="kind.label" :value="kind.value"></el-option></el-select><el-select v-model="updateFilters.district" style="width:140px" @change="updatePage=1;loadUpdates()"><el-option label="全部地区" value=""></el-option><el-option v-for="d in districts" :key="d" :label="d" :value="d"></el-option></el-select><el-select v-model="updateFilters.stage" style="width:150px" @change="updatePage=1;loadUpdates()"><el-option label="全部学校类型" value=""></el-option><el-option label="中学" value="secondary"></el-option><el-option label="小学" value="primary"></el-option></el-select><el-select v-model="updateFilters.school_id" filterable remote clearable reserve-keyword :remote-method="searchFilterSchools" :loading="filterSchoolSearching" placeholder="按学校筛选（输入搜索）" style="width:240px" @change="updatePage=1;loadUpdates()"><el-option v-for="school in filterSchoolOptions" :key="school.id" :label="school.name" :value="school.id"></el-option></el-select><el-input v-model="updateFilters.keyword" placeholder="按学校名称搜索" clearable style="width:240px" @keyup.enter="updatePage=1;loadUpdates()" @clear="updatePage=1;loadUpdates()"></el-input><el-button @click="updatePage=1;loadUpdates()">查询</el-button><span class="filter-note">共 {{ updateTotal }} 条</span></div>
         <el-table :data="updates" v-loading="updateLoading" row-key="id" style="width:100%">
-          <el-table-column label="快讯" min-width="280"><template #default="scope"><div class="school-cell"><strong>{{ scope.row.title || '（未填写标题）' }}</strong><small>#{{ scope.row.id }} · {{ scope.row.school.name }}</small></div></template></el-table-column>
+          <el-table-column label="动态" min-width="280"><template #default="scope"><div class="school-cell"><strong>{{ scope.row.title || '（未填写标题）' }}</strong><small>#{{ scope.row.id }} · {{ scope.row.school.name }}</small></div></template></el-table-column>
           <el-table-column label="类型" width="140"><template #default="scope">{{ kindLabel(scope.row.change_kind) }}</template></el-table-column>
           <el-table-column label="状态" width="100"><template #default="scope"><el-tag size="small" :type="scope.row.status === 'published' ? 'success' : scope.row.status === 'deleted' ? 'danger' : 'info'">{{ statusLabel(scope.row.status) }}</el-tag></template></el-table-column>
           <el-table-column label="首次发布" width="150"><template #default="scope"><span class="muted">{{ fmt(scope.row.first_published_at) }}</span></template></el-table-column>
           <el-table-column label="最后修改" width="150"><template #default="scope"><span class="muted">{{ fmt(scope.row.updated_at) }}</span></template></el-table-column>
           <el-table-column label="操作" width="235" fixed="right"><template #default="scope"><div class="action-group"><el-button size="small" type="primary" @click="openUpdate(scope.row.id)">{{ scope.row.status === 'deleted' ? '查看' : '编辑' }}</el-button><el-button v-if="scope.row.status === 'published'" size="small" @click="openPublic(scope.row.id)">公开页</el-button><el-button v-if="scope.row.status === 'deleted'" size="small" @click="restoreUpdate(scope.row.id)">恢复草稿</el-button><el-button v-else size="small" type="danger" text @click="deleteUpdate(scope.row.id, scope.row.status)">删除</el-button></div></template></el-table-column>
-          <template #empty><el-empty description="还没有快讯，从候选生成草稿或手动新建"></el-empty></template>
+          <template #empty><el-empty description="还没有动态，从候选生成草稿或手动新建"></el-empty></template>
         </el-table>
         <div class="pager"><el-pagination background layout="prev, pager, next, total" :total="updateTotal" :page-size="20" :current-page="updatePage" @current-change="changeUpdatePage"></el-pagination></div>
       </div>
@@ -79,7 +79,7 @@
   </main>
 
   <el-drawer v-model="editorVisible" class="editor-drawer" size="min(1180px, 96vw)" :close-on-click-modal="false" :before-close="beforeClose" destroy-on-close>
-    <template #header><div class="editor-title"><strong>{{ editor.id ? `编辑快讯 #${editor.id}` : '手动新建快讯' }}</strong><el-tag v-if="editor.id" :type="editor.status === 'published' ? 'success' : editor.status === 'deleted' ? 'danger' : 'info'">{{ statusLabel(editor.status) }}</el-tag></div></template>
+    <template #header><div class="editor-title"><strong>{{ editor.id ? `编辑动态 #${editor.id}` : '手动新建动态' }}</strong><el-tag v-if="editor.id" :type="editor.status === 'published' ? 'success' : editor.status === 'deleted' ? 'danger' : 'info'">{{ statusLabel(editor.status) }}</el-tag></div></template>
     <div v-if="editor.status === 'deleted'" class="deleted-reason">已软删除：{{ editor.deleted_reason || '未填写原因' }}。恢复为草稿后才能再次编辑或发布。</div>
     <el-alert v-if="editorCandidate" class="candidate-alert" type="info" :closable="false" title="由抓取候选生成，请打开官网人工核实" :description="`候选 #${editorCandidate.id} · ${editorCandidate.change_type}\n旧：${editorCandidate.old_value || '—'}\n新：${editorCandidate.new_value || '—'}`"></el-alert>
     <div class="editor-layout">
@@ -98,9 +98,9 @@
         </section>
       </div>
 
-      <aside class="preview-panel"><div class="preview-header"><h2>公开预览</h2><el-radio-group v-model="previewMode" size="small"><el-radio-button value="card">列表卡片</el-radio-button><el-radio-button value="detail">快讯详情</el-radio-button></el-radio-group></div><div class="preview-body"><div class="preview-card"><el-tag size="small" effect="plain">{{ kindLabel(editor.change_kind) }}</el-tag><h3>{{ editor.title || '（尚未填写标题）' }}</h3><template v-if="previewMode === 'card'"><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">首次发布时间发布后写入 · 默认允许索引</div></template><template v-else><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">官方来源 {{ editor.sources.length }} 个<br>核实时间 {{ fmt(editor.verified_at) }}</div></template></div></div></aside>
+      <aside class="preview-panel"><div class="preview-header"><h2>公开预览</h2><el-radio-group v-model="previewMode" size="small"><el-radio-button value="card">列表卡片</el-radio-button><el-radio-button value="detail">动态详情</el-radio-button></el-radio-group></div><div class="preview-body"><div class="preview-card"><el-tag size="small" effect="plain">{{ kindLabel(editor.change_kind) }}</el-tag><h3>{{ editor.title || '（尚未填写标题）' }}</h3><template v-if="previewMode === 'card'"><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">首次发布时间发布后写入 · 默认允许索引</div></template><template v-else><p>{{ editor.summary || '（尚未填写一句话重点）' }}</p><div class="preview-meta">官方来源 {{ editor.sources.length }} 个<br>核实时间 {{ fmt(editor.verified_at) }}</div></template></div></div></aside>
     </div>
-    <div class="editor-actions"><el-button v-if="editor.id && editor.status === 'deleted'" type="primary" @click="restoreUpdate(editor.id)">恢复为草稿</el-button><el-button v-if="editor.id && editor.status !== 'deleted'" type="danger" text @click="deleteUpdate(editor.id, editor.status)">软删除</el-button><span class="spacer"></span><span class="editor-note">{{ editor.status === 'published' ? '保存后立即公开，请先检查预览' : '草稿不会出现在公开页面' }}</span><el-button @click="beforeClose(() => editorVisible=false)">关闭</el-button><el-button v-if="!readOnly && editor.status === 'draft'" :loading="saving" @click="saveContent">保存草稿</el-button><el-button v-if="!readOnly && editor.status === 'draft'" type="primary" :loading="saving" @click="publishContent">发布快讯</el-button><el-button v-if="!readOnly && editor.status === 'published'" type="primary" :loading="saving" @click="savePublished">保存并公开</el-button></div>
+    <div class="editor-actions"><el-button v-if="editor.id && editor.status === 'deleted'" type="primary" @click="restoreUpdate(editor.id)">恢复为草稿</el-button><el-button v-if="editor.id && editor.status !== 'deleted'" type="danger" text @click="deleteUpdate(editor.id, editor.status)">软删除</el-button><span class="spacer"></span><span class="editor-note">{{ editor.status === 'published' ? '保存后立即公开，请先检查预览' : '草稿不会出现在公开页面' }}</span><el-button @click="beforeClose(() => editorVisible=false)">关闭</el-button><el-button v-if="!readOnly && editor.status === 'draft'" :loading="saving" @click="saveContent">保存草稿</el-button><el-button v-if="!readOnly && editor.status === 'draft'" type="primary" :loading="saving" @click="publishContent">发布动态</el-button><el-button v-if="!readOnly && editor.status === 'published'" type="primary" :loading="saving" @click="savePublished">保存并公开</el-button></div>
   </el-drawer>
   <auth-modal></auth-modal>
 </div>
@@ -255,14 +255,14 @@ createApp({
     async function publishContent() {
       const data = await persist(); if (!data) return;
       state.saving = true;
-      try { const published = await SchoolAuth.api(`/api/v1/admin/updates/${data.id}/publish`, { method: 'POST' }); setEditor(published); loadUpdates(); loadCandidates(); ElementPlus.ElMessage.success('快讯已发布'); } catch (e) { errorMessage(e); } finally { state.saving = false; }
+      try { const published = await SchoolAuth.api(`/api/v1/admin/updates/${data.id}/publish`, { method: 'POST' }); setEditor(published); loadUpdates(); loadCandidates(); ElementPlus.ElMessage.success('动态已发布'); } catch (e) { errorMessage(e); } finally { state.saving = false; }
     }
     async function deleteUpdate(id, status) {
       let reason = '';
       if (status === 'published') {
-        try { const result = await ElementPlus.ElMessageBox.prompt('删除后公开页面立即不可见，后台保留内容。请输入删除原因：', '软删除快讯', { inputPlaceholder: '误发、重复或严重事实错误等原因', inputValidator: value => !!(value && value.trim()) || '删除原因不能为空' }); reason = result.value.trim(); } catch (e) { return; }
+        try { const result = await ElementPlus.ElMessageBox.prompt('删除后公开页面立即不可见，后台保留内容。请输入删除原因：', '软删除动态', { inputPlaceholder: '误发、重复或严重事实错误等原因', inputValidator: value => !!(value && value.trim()) || '删除原因不能为空' }); reason = result.value.trim(); } catch (e) { return; }
       } else {
-        try { await ElementPlus.ElMessageBox.confirm('草稿未公开，删除不影响读者，后台保留记录。确认删除？', '软删除快讯', { type: 'warning' }); } catch (e) { return; }
+        try { await ElementPlus.ElMessageBox.confirm('草稿未公开，删除不影响读者，后台保留记录。确认删除？', '软删除动态', { type: 'warning' }); } catch (e) { return; }
       }
       try { const data = await SchoolAuth.api(`/api/v1/admin/updates/${id}/delete`, { method: 'POST', body: { reason } }); if (state.editor.id === id) setEditor(data); loadUpdates(); ElementPlus.ElMessage.success('已软删除'); } catch (e) { errorMessage(e); }
     }
